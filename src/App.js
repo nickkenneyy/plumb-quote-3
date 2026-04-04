@@ -9,6 +9,7 @@ export default function App() {
   const [materialCost, setMaterialCost] = useState(0);
   const [markup, setMarkup] = useState(1.4);
   const [clientName, setClientName] = useState("");
+  const [materialsList, setMaterialsList] = useState("");
 
   // CALCULATIONS
   const laborCost = hourlyRate * hours;
@@ -16,61 +17,67 @@ export default function App() {
   const subtotal = laborCost + materials;
   const total = subtotal;
 
-  // PDF GENERATION
+  // PDF FUNCTION (WORKING)
   const generatePDF = () => {
-    const generatePDF = () => {
-  const doc = new jsPDF();
+    const doc = new jsPDF();
 
-  // LOGO
-  doc.addImage(logo, "PNG", 20, 10, 40, 20);
+    // LOGO
+    try {
+      doc.addImage(logo, "PNG", 20, 10, 40, 20);
+    } catch (e) {
+      console.log("Logo not loaded yet");
+    }
 
-  // COMPANY
-  doc.setFontSize(16);
-  doc.text("Plumb Quote 3", 70, 20);
+    // HEADER
+    doc.setFontSize(16);
+    doc.text("Plumb Quote 3", 70, 20);
 
-  doc.setFontSize(10);
-  doc.text("Professional Plumbing Services", 70, 28);
+    doc.setFontSize(10);
+    doc.text("Professional Plumbing Services", 70, 28);
 
-  // LINE
-  doc.line(20, 50, 190, 50);
+    // LINE
+    doc.line(20, 50, 190, 50);
 
-  // CLIENT
-  doc.setFontSize(12);
-  doc.text(`Client: ${clientName}`, 20, 65);
-  doc.text(`Service: ${jobType}`, 20, 75);
+    // CLIENT INFO
+    doc.setFontSize(12);
+    doc.text(`Client: ${clientName || "N/A"}`, 20, 65);
+    doc.text(`Service: ${jobType}`, 20, 75);
 
-  // TABLE HEADER
-  doc.text("Description", 20, 95);
-  doc.text("Amount", 160, 95);
-  doc.line(20, 100, 190, 100);
+    // MATERIAL LIST
+    doc.text("Materials Used:", 20, 85);
+    doc.text(materialsList || "N/A", 20, 92);
 
-  // ITEMS
-  doc.text("Labor", 20, 115);
-  doc.text(`$${laborCost.toFixed(2)}`, 160, 115);
+    // TABLE HEADER
+    doc.text("Description", 20, 110);
+    doc.text("Amount", 160, 110);
+    doc.line(20, 115, 190, 115);
 
-  doc.text("Materials", 20, 125);
-  doc.text(`$${materials.toFixed(2)}`, 160, 125);
+    // ITEMS
+    doc.text("Labor", 20, 130);
+    doc.text(`$${laborCost.toFixed(2)}`, 160, 130);
 
-  doc.text("Subtotal", 20, 135);
-  doc.text(`$${subtotal.toFixed(2)}`, 160, 135);
+    doc.text("Materials", 20, 140);
+    doc.text(`$${materials.toFixed(2)}`, 160, 140);
 
-  // TOTAL
-  doc.setFontSize(14);
-  doc.text("TOTAL", 20, 155);
-  doc.text(`$${total.toFixed(2)}`, 160, 155);
+    doc.text("Subtotal", 20, 150);
+    doc.text(`$${subtotal.toFixed(2)}`, 160, 150);
 
-  // FOOTER
-  doc.setFontSize(10);
-  doc.text("Thank you for your business.", 20, 180);
+    // TOTAL
+    doc.setFontSize(14);
+    doc.text("TOTAL", 20, 170);
+    doc.text(`$${total.toFixed(2)}`, 160, 170);
 
-  doc.save(`${clientName || "quote"}.pdf`);
-};
+    // FOOTER
+    doc.setFontSize(10);
+    doc.text("Thank you for your business.", 20, 190);
+
+    doc.save(`${clientName || "quote"}.pdf`);
   };
 
   return (
     <div style={styles.container}>
       <img src={logo} alt="logo" style={{ width: "120px", marginBottom: "10px" }} />
-<h1 style={styles.title}>Plumb Quote 3</h1>
+      <h1 style={styles.title}>Plumb Quote 3</h1>
 
       <div style={styles.card}>
         <label>Client Name</label>
@@ -114,6 +121,14 @@ export default function App() {
           style={styles.input}
           value={materialCost}
           onChange={(e) => setMaterialCost(Number(e.target.value))}
+        />
+
+        <label>Materials Used</label>
+        <textarea
+          style={styles.input}
+          placeholder="e.g. PVC pipe, wax ring, fittings..."
+          value={materialsList}
+          onChange={(e) => setMaterialsList(e.target.value)}
         />
 
         <label>Material Markup</label>
