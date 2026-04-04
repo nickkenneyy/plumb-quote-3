@@ -6,7 +6,6 @@ export default function App() {
   const [hours, setHours] = useState(1);
   const [materialCost, setMaterialCost] = useState(0);
   const [markup, setMarkup] = useState(1.4);
-  const [margin, setMargin] = useState(1.2);
   const [clientName, setClientName] = useState("");
   const [companyName, setCompanyName] = useState("Plumb Quote 3");
 
@@ -19,9 +18,9 @@ export default function App() {
 
   const laborRate = rates[jobType];
   const laborCost = laborRate * hours;
-  const materials = materialCost * markup;
-  const subtotal = laborCost + materials;
-  const total = subtotal * margin;
+const materials = materialCost * markup;
+const subtotal = laborCost + materials;
+const total = subtotal;
 
   const generatePDF = () => {
   const doc = new jsPDF();
