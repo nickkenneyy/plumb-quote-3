@@ -45,46 +45,52 @@ export default function App() {
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Plumb Quote 3</h1>
+  <h1 style={styles.title}>Plumb Quote 3</h1>
 
-      <div style={styles.card}>
-        <label>Company Name</label>
-        <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} style={styles.input} />
+  <div style={styles.card}>
+    <label>Client Name</label>
+    <input
+      style={styles.input}
+      value={clientName}
+      onChange={(e) => setClientName(e.target.value)}
+    />
 
-        <label>Client Name</label>
-        <input value={clientName} onChange={(e) => setClientName(e.target.value)} style={styles.input} />
+    <label>Job Type</label>
+    <select
+      style={styles.input}
+      value={jobType}
+      onChange={(e) => setJobType(e.target.value)}
+    >
+      <option>Drain Cleaning</option>
+      <option>Fixture Install</option>
+      <option>Pipe Repair</option>
+      <option>Emergency Call</option>
+    </select>
 
-        <label>Job Type</label>
-        <select value={jobType} onChange={(e) => setJobType(e.target.value)} style={styles.input}>
-          {Object.keys(rates).map((job) => (
-            <option key={job}>{job}</option>
-          ))}
-        </select>
+    <label>Hours</label>
+    <input
+      type="number"
+      style={styles.input}
+      value={hours}
+      onChange={(e) => setHours(Number(e.target.value))}
+    />
 
-        <label>Hours</label>
-        <input type="number" value={hours} onChange={(e) => setHours(Number(e.target.value))} style={styles.input} />
+    <label>Materials ($)</label>
+    <input
+      type="number"
+      style={styles.input}
+      value={materialCost}
+      onChange={(e) => setMaterialCost(Number(e.target.value))}
+    />
 
-        <label>Material Cost</label>
-        <input type="number" value={materialCost} onChange={(e) => setMaterialCost(Number(e.target.value))} style={styles.input} />
+    <h3>Subtotal: ${subtotal.toFixed(2)}</h3>
+    <h2>Total: ${total.toFixed(2)}</h2>
 
-        <label>Material Markup</label>
-        <input type="number" step="0.1" value={markup} onChange={(e) => setMarkup(Number(e.target.value))} style={styles.input} />
-
-        <label>Profit Margin</label>
-        <input type="number" step="0.1" value={margin} onChange={(e) => setMargin(Number(e.target.value))} style={styles.input} />
-
-        <div style={styles.result}>
-          <p>Labor: ${laborCost.toFixed(2)}</p>
-          <p>Materials: ${materials.toFixed(2)}</p>
-          <p>Subtotal: ${subtotal.toFixed(2)}</p>
-          <h2>Total: ${total.toFixed(2)}</h2>
-        </div>
-
-        <button style={styles.button} onClick={generatePDF}>
-          Download Quote
-        </button>
-      </div>
-    </div>
+    <button style={styles.button} onClick={generatePDF}>
+      Download Quote PDF
+    </button>
+  </div>
+</div>
   );
 }
 
