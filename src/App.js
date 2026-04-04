@@ -3,6 +3,7 @@ import { jsPDF } from "jspdf";
 import logo from "./logo.png";
 
 export default function App() {
+  const [companyName, setCompanyName] = useState("");
   const [jobType, setJobType] = useState("Drain Cleaning");
   const [hours, setHours] = useState(1);
   const [hourlyRate, setHourlyRate] = useState(120);
@@ -17,42 +18,34 @@ export default function App() {
   const subtotal = laborCost + materials;
   const total = subtotal;
 
-  // PDF FUNCTION (WORKING)
+  // PDF
   const generatePDF = () => {
     const doc = new jsPDF();
 
-    // LOGO
     try {
       doc.addImage(logo, "PNG", 20, 10, 40, 20);
-    } catch (e) {
-      console.log("Logo not loaded yet");
-    }
+    } catch {}
 
-    // HEADER
+    // COMPANY NAME (NEW)
     doc.setFontSize(16);
-    doc.text("Plumb Quote 3", 70, 20);
+    doc.text(companyName || "Your Company", 70, 20);
 
     doc.setFontSize(10);
     doc.text("Professional Plumbing Services", 70, 28);
 
-    // LINE
     doc.line(20, 50, 190, 50);
 
-    // CLIENT INFO
     doc.setFontSize(12);
     doc.text(`Client: ${clientName || "N/A"}`, 20, 65);
     doc.text(`Service: ${jobType}`, 20, 75);
 
-    // MATERIAL LIST
     doc.text("Materials Used:", 20, 85);
     doc.text(materialsList || "N/A", 20, 92);
 
-    // TABLE HEADER
     doc.text("Description", 20, 110);
     doc.text("Amount", 160, 110);
     doc.line(20, 115, 190, 115);
 
-    // ITEMS
     doc.text("Labor", 20, 130);
     doc.text(`$${laborCost.toFixed(2)}`, 160, 130);
 
@@ -62,12 +55,10 @@ export default function App() {
     doc.text("Subtotal", 20, 150);
     doc.text(`$${subtotal.toFixed(2)}`, 160, 150);
 
-    // TOTAL
     doc.setFontSize(14);
     doc.text("TOTAL", 20, 170);
     doc.text(`$${total.toFixed(2)}`, 160, 170);
 
-    // FOOTER
     doc.setFontSize(10);
     doc.text("Thank you for your business.", 20, 190);
 
@@ -80,6 +71,14 @@ export default function App() {
       <h1 style={styles.title}>Plumb Quote 3</h1>
 
       <div style={styles.card}>
+        {/* NEW COMPANY NAME INPUT */}
+        <label>Company Name</label>
+        <input
+          style={styles.input}
+          value={companyName}
+          onChange={(e) => setCompanyName(e.target.value)}
+        />
+
         <label>Client Name</label>
         <input
           style={styles.input}
@@ -126,7 +125,7 @@ export default function App() {
         <label>Materials Used</label>
         <textarea
           style={styles.input}
-          placeholder="e.g. PVC pipe, wax ring, fittings..."
+          placeholder="e.g. PVC pipe, wax ring..."
           value={materialsList}
           onChange={(e) => setMaterialsList(e.target.value)}
         />
@@ -155,7 +154,6 @@ export default function App() {
   );
 }
 
-// STYLES
 const styles = {
   container: {
     fontFamily: "Arial",
