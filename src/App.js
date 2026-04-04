@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { jsPDF } from "jspdf";
+import logo from "./logo.png";
 
 export default function App() {
   const [jobType, setJobType] = useState("Drain Cleaning");
@@ -17,30 +18,59 @@ export default function App() {
 
   // PDF GENERATION
   const generatePDF = () => {
-    const doc = new jsPDF();
+    const generatePDF = () => {
+  const doc = new jsPDF();
 
-    doc.setFontSize(18);
-    doc.text("Plumb Quote 3", 20, 20);
+  // LOGO
+  doc.addImage(logo, "PNG", 20, 10, 40, 20);
 
-    doc.setFontSize(12);
-    doc.text(`Client: ${clientName}`, 20, 40);
-    doc.text(`Job Type: ${jobType}`, 20, 50);
-    doc.text(`Hourly Rate: $${hourlyRate}`, 20, 60);
-    doc.text(`Hours: ${hours}`, 20, 70);
+  // COMPANY
+  doc.setFontSize(16);
+  doc.text("Plumb Quote 3", 70, 20);
 
-    doc.text(`Labor: $${laborCost.toFixed(2)}`, 20, 90);
-    doc.text(`Materials: $${materials.toFixed(2)}`, 20, 100);
-    doc.text(`Subtotal: $${subtotal.toFixed(2)}`, 20, 110);
+  doc.setFontSize(10);
+  doc.text("Professional Plumbing Services", 70, 28);
 
-    doc.setFontSize(14);
-    doc.text(`TOTAL: $${total.toFixed(2)}`, 20, 130);
+  // LINE
+  doc.line(20, 50, 190, 50);
 
-    doc.save(`${clientName || "quote"}.pdf`);
+  // CLIENT
+  doc.setFontSize(12);
+  doc.text(`Client: ${clientName}`, 20, 65);
+  doc.text(`Service: ${jobType}`, 20, 75);
+
+  // TABLE HEADER
+  doc.text("Description", 20, 95);
+  doc.text("Amount", 160, 95);
+  doc.line(20, 100, 190, 100);
+
+  // ITEMS
+  doc.text("Labor", 20, 115);
+  doc.text(`$${laborCost.toFixed(2)}`, 160, 115);
+
+  doc.text("Materials", 20, 125);
+  doc.text(`$${materials.toFixed(2)}`, 160, 125);
+
+  doc.text("Subtotal", 20, 135);
+  doc.text(`$${subtotal.toFixed(2)}`, 160, 135);
+
+  // TOTAL
+  doc.setFontSize(14);
+  doc.text("TOTAL", 20, 155);
+  doc.text(`$${total.toFixed(2)}`, 160, 155);
+
+  // FOOTER
+  doc.setFontSize(10);
+  doc.text("Thank you for your business.", 20, 180);
+
+  doc.save(`${clientName || "quote"}.pdf`);
+};
   };
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Plumb Quote 3</h1>
+      <img src={logo} alt="logo" style={{ width: "120px", marginBottom: "10px" }} />
+<h1 style={styles.title}>Plumb Quote 3</h1>
 
       <div style={styles.card}>
         <label>Client Name</label>
