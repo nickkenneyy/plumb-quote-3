@@ -69,5 +69,8 @@ export default function App() {
       onDeleteTemplate={deleteTemplate}
       onLogout={logout}
     />
+    <div style={{ background: "red", color: "white", height: "100vh" }}>
+      <h1>WORKING</h1>
+    </div>
   );
 }
