@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { jsPDF } from "jspdf";
 
 export default function App() {
   const [jobType, setJobType] = useState("Drain Cleaning");
@@ -23,29 +24,24 @@ export default function App() {
   const total = subtotal * margin;
 
   const generatePDF = () => {
-    const content = `
-${companyName}
-------------------------
-Client: ${clientName}
-Job Type: ${jobType}
+  const doc = new jsPDF();
 
-Labor: $${laborCost.toFixed(2)}
-Materials: $${materials.toFixed(2)}
-Subtotal: $${subtotal.toFixed(2)}
+  doc.setFontSize(18);
+  doc.text("Plumb Quote 3", 20, 20);
 
-TOTAL: $${total.toFixed(2)}
+  doc.setFontSize(12);
+  doc.text(`Client: ${clientName}`, 20, 40);
+  doc.text(`Job Type: ${jobType}`, 20, 50);
 
-Thank you for your business.
-    `;
+  doc.text(`Labor: $${laborCost.toFixed(2)}`, 20, 70);
+  doc.text(`Materials: $${materials.toFixed(2)}`, 20, 80);
+  doc.text(`Subtotal: $${subtotal.toFixed(2)}`, 20, 90);
 
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = window.URL.createObjectURL(blob);
+  doc.setFontSize(14);
+  doc.text(`TOTAL: $${total.toFixed(2)}`, 20, 110);
 
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${clientName || "quote"}.txt`;
-    link.click();
-  };
+  doc.save(`${clientName || "quote"}.pdf`);
+};
 
   return (
     <div style={styles.container}>
