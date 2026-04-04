@@ -59,7 +59,6 @@ export default function App() {
     <DashboardPage
       user={user}
       templates={templates}
-      onNewQuote={() => {
         setActiveTemplate(null);
         setPage(PAGES.QUOTE_BUILDER);
       }}
