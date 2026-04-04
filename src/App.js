@@ -7,6 +7,7 @@ export default function App() {
   const [markup, setMarkup] = useState(1.4);
   const [margin, setMargin] = useState(1.2);
   const [clientName, setClientName] = useState("");
+  const [companyName, setCompanyName] = useState("Plumb Quote 3");
 
   const rates = {
     "Drain Cleaning": 120,
@@ -21,76 +22,71 @@ export default function App() {
   const subtotal = laborCost + materials;
   const total = subtotal * margin;
 
+  const generatePDF = () => {
+    const content = `
+${companyName}
+------------------------
+Client: ${clientName}
+Job Type: ${jobType}
+
+Labor: $${laborCost.toFixed(2)}
+Materials: $${materials.toFixed(2)}
+Subtotal: $${subtotal.toFixed(2)}
+
+TOTAL: $${total.toFixed(2)}
+
+Thank you for your business.
+    `;
+
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${clientName || "quote"}.txt`;
+    link.click();
+  };
+
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Plumbing Quote Tool</h1>
+      <h1 style={styles.title}>Plumb Quote 3</h1>
 
       <div style={styles.card}>
-        <label style={styles.label}>Client Name</label>
-        <input
-          value={clientName}
-          onChange={(e) => setClientName(e.target.value)}
-          style={styles.input}
-        />
+        <label>Company Name</label>
+        <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} style={styles.input} />
 
-        <label style={styles.label}>Job Type</label>
-        <select
-          value={jobType}
-          onChange={(e) => setJobType(e.target.value)}
-          style={styles.input}
-        >
+        <label>Client Name</label>
+        <input value={clientName} onChange={(e) => setClientName(e.target.value)} style={styles.input} />
+
+        <label>Job Type</label>
+        <select value={jobType} onChange={(e) => setJobType(e.target.value)} style={styles.input}>
           {Object.keys(rates).map((job) => (
             <option key={job}>{job}</option>
           ))}
         </select>
 
-        <label style={styles.label}>Hours</label>
-        <input
-          type="number"
-          value={hours}
-          onChange={(e) => setHours(Number(e.target.value))}
-          style={styles.input}
-        />
+        <label>Hours</label>
+        <input type="number" value={hours} onChange={(e) => setHours(Number(e.target.value))} style={styles.input} />
 
-        <label style={styles.label}>Material Cost ($)</label>
-        <input
-          type="number"
-          value={materialCost}
-          onChange={(e) => setMaterialCost(Number(e.target.value))}
-          style={styles.input}
-        />
+        <label>Material Cost</label>
+        <input type="number" value={materialCost} onChange={(e) => setMaterialCost(Number(e.target.value))} style={styles.input} />
 
-        <label style={styles.label}>Material Markup</label>
-        <input
-          type="number"
-          step="0.1"
-          value={markup}
-          onChange={(e) => setMarkup(Number(e.target.value))}
-          style={styles.input}
-        />
+        <label>Material Markup</label>
+        <input type="number" step="0.1" value={markup} onChange={(e) => setMarkup(Number(e.target.value))} style={styles.input} />
 
-        <label style={styles.label}>Profit Margin</label>
-        <input
-          type="number"
-          step="0.1"
-          value={margin}
-          onChange={(e) => setMargin(Number(e.target.value))}
-          style={styles.input}
-        />
+        <label>Profit Margin</label>
+        <input type="number" step="0.1" value={margin} onChange={(e) => setMargin(Number(e.target.value))} style={styles.input} />
 
         <div style={styles.result}>
           <p>Labor: ${laborCost.toFixed(2)}</p>
-          <p>Materials (with markup): ${materials.toFixed(2)}</p>
+          <p>Materials: ${materials.toFixed(2)}</p>
           <p>Subtotal: ${subtotal.toFixed(2)}</p>
-
-          <h2>Total Quote: ${total.toFixed(2)}</h2>
-
-          {margin < 1.15 && (
-            <p style={{ color: "red" }}>
-              ⚠️ Warning: Low profit margin
-            </p>
-          )}
+          <h2>Total: ${total.toFixed(2)}</h2>
         </div>
+
+        <button style={styles.button} onClick={generatePDF}>
+          Download Quote
+        </button>
       </div>
     </div>
   );
@@ -107,7 +103,6 @@ const styles = {
     alignItems: "center",
   },
   title: {
-    textAlign: "center",
     marginBottom: "20px",
   },
   card: {
@@ -115,22 +110,25 @@ const styles = {
     padding: "30px",
     borderRadius: "12px",
     width: "350px",
-    boxShadow: "0 0 20px rgba(0,0,0,0.3)",
-  },
-  label: {
-    display: "block",
-    marginTop: "15px",
-    marginBottom: "5px",
   },
   input: {
     width: "100%",
     padding: "10px",
+    marginBottom: "10px",
     borderRadius: "6px",
     border: "none",
   },
   result: {
+    marginTop: "10px",
+  },
+  button: {
     marginTop: "20px",
-    borderTop: "1px solid #334155",
-    paddingTop: "15px",
+    width: "100%",
+    padding: "12px",
+    background: "#22c55e",
+    border: "none",
+    borderRadius: "8px",
+    fontWeight: "bold",
+    cursor: "pointer",
   },
 };
