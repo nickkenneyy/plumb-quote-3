@@ -6,17 +6,17 @@ import { jsPDF } from "jspdf";
 export default function App() {
   const [user, setUser] = useState(null);
 
-  // EXISTING STATES
+  // STATE
+  const [companyName, setCompanyName] = useState("Plumb Quote 3");
+  const [clientName, setClientName] = useState("");
   const [jobType, setJobType] = useState("Drain Cleaning");
   const [hours, setHours] = useState(1);
   const [hourlyRate, setHourlyRate] = useState(120);
   const [materialCost, setMaterialCost] = useState(0);
   const [markup, setMarkup] = useState(1.4);
-  const [clientName, setClientName] = useState("");
-  const [companyName, setCompanyName] = useState("Plumb Quote 3");
   const [materialsList, setMaterialsList] = useState("");
 
-  // CHECK LOGIN
+  // AUTH LISTENER
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -24,9 +24,15 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // LOGIN FUNCTION
+  // LOGIN (FIXED)
   const handleLogin = async () => {
-    await signInWithPopup(auth, googleProvider);
+    try {
+      await signInWithPopup(auth, googleProvider);
+      console.log("Login successful");
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("Login failed. Check console.");
+    }
   };
 
   // LOGOUT
@@ -40,7 +46,7 @@ export default function App() {
   const subtotal = laborCost + materials;
   const total = subtotal;
 
-  // PDF FUNCTION (LOCKED IF NOT LOGGED IN)
+  // PDF (LOCKED)
   const generatePDF = () => {
     if (!user) {
       alert("Login required to download PDF");
@@ -55,18 +61,17 @@ export default function App() {
     doc.setFontSize(12);
     doc.text(`Client: ${clientName}`, 20, 40);
     doc.text(`Job Type: ${jobType}`, 20, 50);
-    doc.text(`Hourly Rate: $${hourlyRate}`, 20, 60);
-    doc.text(`Hours: ${hours}`, 20, 70);
+    doc.text(`Hours: ${hours}`, 20, 60);
 
-    doc.text(`Materials Used:`, 20, 90);
-    doc.text(materialsList || "N/A", 20, 100);
+    doc.text(`Materials Used:`, 20, 80);
+    doc.text(materialsList || "N/A", 20, 90);
 
-    doc.text(`Labor: $${laborCost.toFixed(2)}`, 20, 120);
-    doc.text(`Materials: $${materials.toFixed(2)}`, 20, 130);
-    doc.text(`Subtotal: $${subtotal.toFixed(2)}`, 20, 140);
+    doc.text(`Labor: $${laborCost.toFixed(2)}`, 20, 110);
+    doc.text(`Materials: $${materials.toFixed(2)}`, 20, 120);
+    doc.text(`Subtotal: $${subtotal.toFixed(2)}`, 20, 130);
 
     doc.setFontSize(14);
-    doc.text(`TOTAL: $${total.toFixed(2)}`, 20, 160);
+    doc.text(`TOTAL: $${total.toFixed(2)}`, 20, 150);
 
     doc.save(`${clientName || "quote"}.pdf`);
   };
@@ -76,7 +81,7 @@ export default function App() {
     return (
       <div style={styles.center}>
         <h1>Plumb Quote 3</h1>
-        <p>Login to access full features</p>
+        <p>Login to access the app</p>
         <button style={styles.button} onClick={handleLogin}>
           Login with Google
         </button>
@@ -89,7 +94,7 @@ export default function App() {
     <div style={styles.container}>
       <h1>{companyName}</h1>
 
-      <button onClick={handleLogout} style={styles.logout}>
+      <button style={styles.logout} onClick={handleLogout}>
         Logout
       </button>
 
@@ -122,7 +127,7 @@ export default function App() {
 
         <label>Materials Used</label>
         <textarea
-          placeholder="PVC pipe, fittings, etc..."
+          placeholder="PVC pipe, fittings..."
           value={materialsList}
           onChange={(e) => setMaterialsList(e.target.value)}
         />
@@ -142,6 +147,7 @@ export default function App() {
   );
 }
 
+// STYLES
 const styles = {
   container: {
     fontFamily: "Arial",
