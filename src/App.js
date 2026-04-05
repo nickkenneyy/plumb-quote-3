@@ -19,7 +19,6 @@ export default function App() {
 
   const [logo, setLogo] = useState(null);
 
-  // 🔥 FIXTURE (LABOUR ONLY)
   const [fixtures, setFixtures] = useState([
     { name: "", labour: 0, qty: 1 }
   ]);
@@ -47,13 +46,11 @@ export default function App() {
     setFixtures(updated);
   };
 
-  // CALCULATIONS
   const laborCost = hourlyRate * hours;
   const materials = materialCost * markup;
 
   const fixtureTotal = fixtures.reduce((sum, f) => {
-    const line = Number(f.labour) * Number(f.qty);
-    return sum + line;
+    return sum + Number(f.labour) * Number(f.qty);
   }, 0);
 
   const subtotal =
@@ -69,7 +66,7 @@ export default function App() {
     reader.readAsDataURL(e.target.files[0]);
   };
 
-  // PDF
+  // 🔥 FIXED PDF (Labour wording)
   const generatePDF = () => {
     const doc = new jsPDF();
 
@@ -90,10 +87,11 @@ export default function App() {
 
     if (jobType === "Fixture Install") {
       fixtures.forEach((f) => {
-        if (f.name) {
+        if (f.labour > 0) {
           const lineTotal = Number(f.labour) * Number(f.qty);
 
-          doc.text(`${f.name} x${f.qty}`, 20, y);
+          // 🔥 CHANGED HERE
+          doc.text(`Labour x${f.qty}`, 20, y);
           doc.text(`$${lineTotal.toFixed(2)}`, 150, y);
 
           y += 10;
@@ -155,7 +153,8 @@ export default function App() {
 
         {jobType === "Fixture Install" ? (
           <>
-            <h3>Fixtures (Labour Only)</h3>
+            {/* 🔥 CLEAN HEADER */}
+            <h3>Fixtures</h3>
 
             {fixtures.map((f, i) => (
               <div key={i} style={{ display: "flex", gap: 10 }}>
