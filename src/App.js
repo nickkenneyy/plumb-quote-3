@@ -66,7 +66,7 @@ export default function App() {
     reader.readAsDataURL(e.target.files[0]);
   };
 
-  // 🔥 FIXED PDF (Labour wording)
+  // 🔥 PDF FIXED
   const generatePDF = () => {
     const doc = new jsPDF();
 
@@ -87,11 +87,11 @@ export default function App() {
 
     if (jobType === "Fixture Install") {
       fixtures.forEach((f) => {
-        if (f.labour > 0) {
+        if (f.name && f.labour > 0) {
           const lineTotal = Number(f.labour) * Number(f.qty);
 
-          // 🔥 CHANGED HERE
-          doc.text(`Labour x${f.qty}`, 20, y);
+          // 🔥 FINAL FIX
+          doc.text(`${f.name} install labour x${f.qty}`, 20, y);
           doc.text(`$${lineTotal.toFixed(2)}`, 150, y);
 
           y += 10;
@@ -153,7 +153,7 @@ export default function App() {
 
         {jobType === "Fixture Install" ? (
           <>
-            {/* 🔥 CLEAN HEADER */}
+            {/* 🔥 FIXED HEADER */}
             <h3>Fixtures</h3>
 
             {fixtures.map((f, i) => (
