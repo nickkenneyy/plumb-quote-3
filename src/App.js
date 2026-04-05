@@ -9,42 +9,73 @@ export default function App() {
   const [companyName, setCompanyName] = useState("Plumb Quote 3");
   const [clientName, setClientName] = useState("");
   const [jobType, setJobType] = useState("Drain Cleaning");
+
   const [hours, setHours] = useState(1);
   const [hourlyRate, setHourlyRate] = useState(120);
+
   const [materialCost, setMaterialCost] = useState(0);
   const [markup, setMarkup] = useState(1.4);
   const [materialsList, setMaterialsList] = useState("");
 
+  const [logo, setLogo] = useState(null);
+
+  // 🔥 FIXED RATE ITEMS
+  const [fixtures, setFixtures] = useState([{ name: "", price: 0 }]);
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
+    const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsubscribe();
   }, []);
 
   const handleLogin = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err) {
-      console.error(err);
-      alert("Login failed");
-    }
+    await signInWithPopup(auth, googleProvider);
   };
 
   const handleLogout = async () => {
     await signOut(auth);
   };
 
+  // 🔥 FIXTURE HANDLERS
+  const addFixture = () => {
+    setFixtures([...fixtures, { name: "", price: 0 }]);
+  };
+
+  const updateFixture = (index, field, value) => {
+    const updated = [...fixtures];
+    updated[index][field] = value;
+    setFixtures(updated);
+  };
+
+  // CALCULATIONS
   const laborCost = hourlyRate * hours;
   const materials = materialCost * markup;
-  const subtotal = laborCost + materials;
+  const fixtureTotal = fixtures.reduce((sum, f) => sum + Number(f.price || 0), 0);
+
+  const subtotal =
+    jobType === "Fixture Install"
+      ? fixtureTotal + materials
+      : laborCost + materials;
+
   const total = subtotal;
 
-  // 🔥 CLEAN PROFESSIONAL PDF
+  // 🔥 LOGO UPLOAD
+  const handleLogoUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => setLogo(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // 🔥 PDF
   const generatePDF = () => {
     const doc = new jsPDF();
 
-    // HEADER
+    if (logo) {
+      doc.addImage(logo, "PNG", 150, 10, 40, 20);
+    }
+
     doc.setFontSize(20);
     doc.text(companyName, 20, 20);
 
@@ -52,32 +83,34 @@ export default function App() {
     doc.text(`Client: ${clientName}`, 20, 35);
     doc.text(`Job Type: ${jobType}`, 20, 45);
 
-    // LINE
     doc.line(20, 50, 190, 50);
 
-    // TABLE STYLE
-    doc.text("Description", 20, 60);
-    doc.text("Amount", 150, 60);
+    let y = 65;
 
-    doc.line(20, 63, 190, 63);
+    if (jobType === "Fixture Install") {
+      fixtures.forEach((f) => {
+        if (f.name) {
+          doc.text(f.name, 20, y);
+          doc.text(`$${Number(f.price).toFixed(2)}`, 150, y);
+          y += 10;
+        }
+      });
+    } else {
+      doc.text("Labor", 20, y);
+      doc.text(`$${laborCost.toFixed(2)}`, 150, y);
+      y += 10;
+    }
 
-    doc.text("Labor", 20, 75);
-    doc.text(`$${laborCost.toFixed(2)}`, 150, 75);
+    doc.text("Materials", 20, y);
+    doc.text(`$${materials.toFixed(2)}`, 150, y);
+    y += 15;
 
-    doc.text("Materials", 20, 85);
-    doc.text(`$${materials.toFixed(2)}`, 150, 85);
+    doc.setFontSize(14);
+    doc.text(`TOTAL: $${total.toFixed(2)}`, 20, y);
 
-    doc.text("Subtotal", 20, 100);
-    doc.text(`$${subtotal.toFixed(2)}`, 150, 100);
-
-    // TOTAL BOX
-    doc.setFontSize(16);
-    doc.text(`TOTAL: $${total.toFixed(2)}`, 20, 120);
-
-    // MATERIAL NOTES
-    doc.setFontSize(11);
-    doc.text("Materials Used:", 20, 140);
-    doc.text(materialsList || "N/A", 20, 150);
+    doc.setFontSize(10);
+    doc.text("Materials Used:", 20, y + 15);
+    doc.text(materialsList || "N/A", 20, y + 25);
 
     doc.save(`${clientName || "quote"}.pdf`);
   };
@@ -98,13 +131,14 @@ export default function App() {
     <div style={styles.container}>
       <h1>{companyName}</h1>
 
-      <button style={styles.logout} onClick={handleLogout}>
-        Logout
-      </button>
+      <button onClick={handleLogout}>Logout</button>
 
       <div style={styles.card}>
         <label>Company Name</label>
         <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+
+        <label>Upload Logo</label>
+        <input type="file" accept="image/*" onChange={handleLogoUpload} />
 
         <label>Client Name</label>
         <input value={clientName} onChange={(e) => setClientName(e.target.value)} />
@@ -114,75 +148,74 @@ export default function App() {
           <option>Drain Cleaning</option>
           <option>Fixture Install</option>
           <option>Pipe Repair</option>
-          <option>Emergency Call</option>
         </select>
 
-        <label>Hourly Rate</label>
-        <input type="number" value={hourlyRate} onChange={(e) => setHourlyRate(Number(e.target.value))} />
+        {jobType === "Fixture Install" ? (
+          <>
+            <h3>Fixtures</h3>
 
-        <label>Hours</label>
-        <input type="number" value={hours} onChange={(e) => setHours(Number(e.target.value))} />
+            {fixtures.map((f, i) => (
+              <div key={i} style={{ display: "flex", gap: 10 }}>
+                <input
+                  placeholder="Fixture name"
+                  value={f.name}
+                  onChange={(e) => updateFixture(i, "name", e.target.value)}
+                />
+                <input
+                  type="number"
+                  placeholder="Price"
+                  value={f.price}
+                  onChange={(e) => updateFixture(i, "price", e.target.value)}
+                />
+              </div>
+            ))}
+
+            <button onClick={addFixture}>+ Add Fixture</button>
+          </>
+        ) : (
+          <>
+            <label>Hourly Rate</label>
+            <input type="number" value={hourlyRate} onChange={(e) => setHourlyRate(Number(e.target.value))} />
+
+            <label>Hours</label>
+            <input type="number" value={hours} onChange={(e) => setHours(Number(e.target.value))} />
+          </>
+        )}
 
         <label>Material Cost</label>
         <input type="number" value={materialCost} onChange={(e) => setMaterialCost(Number(e.target.value))} />
 
-        <label>Material Markup</label>
-        <input type="number" step="0.1" value={markup} onChange={(e) => setMarkup(Number(e.target.value))} />
+        <label>Markup</label>
+        <input type="number" value={markup} onChange={(e) => setMarkup(Number(e.target.value))} />
 
         <label>Materials Used</label>
-        <textarea
-          placeholder="PVC pipe, fittings..."
-          value={materialsList}
-          onChange={(e) => setMaterialsList(e.target.value)}
-        />
+        <textarea value={materialsList} onChange={(e) => setMaterialsList(e.target.value)} />
 
-        <div style={styles.result}>
-          <p>Labor: ${laborCost.toFixed(2)}</p>
-          <p>Materials: ${materials.toFixed(2)}</p>
-          <p>Subtotal: ${subtotal.toFixed(2)}</p>
-          <h2>Total: ${total.toFixed(2)}</h2>
-        </div>
+        <h2>Total: ${total.toFixed(2)}</h2>
 
         <button style={styles.button} onClick={generatePDF}>
-          Download Quote PDF
+          Download PDF
         </button>
       </div>
     </div>
   );
 }
 
-// 🔥 CLEAN BLUE UI
 const styles = {
-  container: {
-    fontFamily: "Arial",
-    padding: 20,
-    maxWidth: 500,
-    margin: "auto",
-  },
+  container: { padding: 20, maxWidth: 500, margin: "auto" },
   card: {
     display: "flex",
     flexDirection: "column",
     gap: 10,
-    background: "#f5f8ff",
+    background: "#f0f4ff",
     padding: 20,
-    borderRadius: 10,
-    boxShadow: "0 0 10px rgba(0,0,0,0.1)"
+    borderRadius: 10
   },
   button: {
-    marginTop: 15,
-    padding: 12,
     background: "#2f5cff",
     color: "white",
-    border: "none",
-    borderRadius: 6,
-    cursor: "pointer",
-    fontWeight: "bold"
-  },
-  logout: {
-    marginBottom: 10
-  },
-  result: {
-    marginTop: 10
+    padding: 10,
+    border: "none"
   },
   login: {
     textAlign: "center",
