@@ -6,7 +6,6 @@ import { jsPDF } from "jspdf";
 export default function App() {
   const [user, setUser] = useState(null);
 
-  // STATE
   const [companyName, setCompanyName] = useState("Plumb Quote 3");
   const [clientName, setClientName] = useState("");
   const [jobType, setJobType] = useState("Drain Cleaning");
@@ -16,7 +15,6 @@ export default function App() {
   const [markup, setMarkup] = useState(1.4);
   const [materialsList, setMaterialsList] = useState("");
 
-  // AUTH LISTENER
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -24,64 +22,71 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // LOGIN (FIXED)
   const handleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-      console.log("Login successful");
-    } catch (error) {
-      console.error("Login error:", error);
-      alert("Login failed. Check console.");
+    } catch (err) {
+      console.error(err);
+      alert("Login failed");
     }
   };
 
-  // LOGOUT
   const handleLogout = async () => {
     await signOut(auth);
   };
 
-  // CALCULATIONS
   const laborCost = hourlyRate * hours;
   const materials = materialCost * markup;
   const subtotal = laborCost + materials;
   const total = subtotal;
 
-  // PDF (LOCKED)
+  // 🔥 CLEAN PROFESSIONAL PDF
   const generatePDF = () => {
-    if (!user) {
-      alert("Login required to download PDF");
-      return;
-    }
-
     const doc = new jsPDF();
 
-    doc.setFontSize(18);
+    // HEADER
+    doc.setFontSize(20);
     doc.text(companyName, 20, 20);
 
     doc.setFontSize(12);
-    doc.text(`Client: ${clientName}`, 20, 40);
-    doc.text(`Job Type: ${jobType}`, 20, 50);
-    doc.text(`Hours: ${hours}`, 20, 60);
+    doc.text(`Client: ${clientName}`, 20, 35);
+    doc.text(`Job Type: ${jobType}`, 20, 45);
 
-    doc.text(`Materials Used:`, 20, 80);
-    doc.text(materialsList || "N/A", 20, 90);
+    // LINE
+    doc.line(20, 50, 190, 50);
 
-    doc.text(`Labor: $${laborCost.toFixed(2)}`, 20, 110);
-    doc.text(`Materials: $${materials.toFixed(2)}`, 20, 120);
-    doc.text(`Subtotal: $${subtotal.toFixed(2)}`, 20, 130);
+    // TABLE STYLE
+    doc.text("Description", 20, 60);
+    doc.text("Amount", 150, 60);
 
-    doc.setFontSize(14);
-    doc.text(`TOTAL: $${total.toFixed(2)}`, 20, 150);
+    doc.line(20, 63, 190, 63);
+
+    doc.text("Labor", 20, 75);
+    doc.text(`$${laborCost.toFixed(2)}`, 150, 75);
+
+    doc.text("Materials", 20, 85);
+    doc.text(`$${materials.toFixed(2)}`, 150, 85);
+
+    doc.text("Subtotal", 20, 100);
+    doc.text(`$${subtotal.toFixed(2)}`, 150, 100);
+
+    // TOTAL BOX
+    doc.setFontSize(16);
+    doc.text(`TOTAL: $${total.toFixed(2)}`, 20, 120);
+
+    // MATERIAL NOTES
+    doc.setFontSize(11);
+    doc.text("Materials Used:", 20, 140);
+    doc.text(materialsList || "N/A", 20, 150);
 
     doc.save(`${clientName || "quote"}.pdf`);
   };
 
-  // 🔒 LOGIN SCREEN
+  // LOGIN SCREEN
   if (!user) {
     return (
-      <div style={styles.center}>
+      <div style={styles.login}>
         <h1>Plumb Quote 3</h1>
-        <p>Login to access the app</p>
         <button style={styles.button} onClick={handleLogin}>
           Login with Google
         </button>
@@ -89,7 +94,6 @@ export default function App() {
     );
   }
 
-  // ✅ MAIN APP
   return (
     <div style={styles.container}>
       <h1>{companyName}</h1>
@@ -147,7 +151,7 @@ export default function App() {
   );
 }
 
-// STYLES
+// 🔥 CLEAN BLUE UI
 const styles = {
   container: {
     fontFamily: "Arial",
@@ -159,23 +163,29 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 10,
-  },
-  result: {
-    marginTop: 10,
+    background: "#f5f8ff",
+    padding: 20,
+    borderRadius: 10,
+    boxShadow: "0 0 10px rgba(0,0,0,0.1)"
   },
   button: {
     marginTop: 15,
-    padding: 10,
-    background: "black",
+    padding: 12,
+    background: "#2f5cff",
     color: "white",
     border: "none",
+    borderRadius: 6,
     cursor: "pointer",
+    fontWeight: "bold"
   },
   logout: {
-    marginBottom: 10,
+    marginBottom: 10
   },
-  center: {
+  result: {
+    marginTop: 10
+  },
+  login: {
     textAlign: "center",
-    marginTop: 100,
-  },
+    marginTop: 100
+  }
 };
