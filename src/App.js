@@ -19,8 +19,10 @@ export default function App() {
 
   const [logo, setLogo] = useState(null);
 
-  // 🔥 FIXED RATE ITEMS
-  const [fixtures, setFixtures] = useState([{ name: "", price: 0 }]);
+  // 🔥 UPDATED FIXTURE SYSTEM
+  const [fixtures, setFixtures] = useState([
+    { name: "", material: 0, labour: 0, qty: 1 }
+  ]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
@@ -35,9 +37,8 @@ export default function App() {
     await signOut(auth);
   };
 
-  // 🔥 FIXTURE HANDLERS
   const addFixture = () => {
-    setFixtures([...fixtures, { name: "", price: 0 }]);
+    setFixtures([...fixtures, { name: "", material: 0, labour: 0, qty: 1 }]);
   };
 
   const updateFixture = (index, field, value) => {
@@ -46,10 +47,14 @@ export default function App() {
     setFixtures(updated);
   };
 
-  // CALCULATIONS
+  // 🔥 CALCULATIONS
   const laborCost = hourlyRate * hours;
   const materials = materialCost * markup;
-  const fixtureTotal = fixtures.reduce((sum, f) => sum + Number(f.price || 0), 0);
+
+  const fixtureTotal = fixtures.reduce((sum, f) => {
+    const line = (Number(f.material) + Number(f.labour)) * Number(f.qty);
+    return sum + line;
+  }, 0);
 
   const subtotal =
     jobType === "Fixture Install"
@@ -58,14 +63,10 @@ export default function App() {
 
   const total = subtotal;
 
-  // 🔥 LOGO UPLOAD
   const handleLogoUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => setLogo(reader.result);
-      reader.readAsDataURL(file);
-    }
+    const reader = new FileReader();
+    reader.onload = () => setLogo(reader.result);
+    reader.readAsDataURL(e.target.files[0]);
   };
 
   // 🔥 PDF
@@ -90,8 +91,12 @@ export default function App() {
     if (jobType === "Fixture Install") {
       fixtures.forEach((f) => {
         if (f.name) {
-          doc.text(f.name, 20, y);
-          doc.text(`$${Number(f.price).toFixed(2)}`, 150, y);
+          const lineTotal =
+            (Number(f.material) + Number(f.labour)) * Number(f.qty);
+
+          doc.text(`${f.name} x${f.qty}`, 20, y);
+          doc.text(`$${lineTotal.toFixed(2)}`, 150, y);
+
           y += 10;
         }
       });
@@ -115,7 +120,6 @@ export default function App() {
     doc.save(`${clientName || "quote"}.pdf`);
   };
 
-  // LOGIN SCREEN
   if (!user) {
     return (
       <div style={styles.login}>
@@ -138,7 +142,7 @@ export default function App() {
         <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
 
         <label>Upload Logo</label>
-        <input type="file" accept="image/*" onChange={handleLogoUpload} />
+        <input type="file" onChange={handleLogoUpload} />
 
         <label>Client Name</label>
         <input value={clientName} onChange={(e) => setClientName(e.target.value)} />
@@ -157,15 +161,30 @@ export default function App() {
             {fixtures.map((f, i) => (
               <div key={i} style={{ display: "flex", gap: 10 }}>
                 <input
-                  placeholder="Fixture name"
+                  placeholder="Fixture"
                   value={f.name}
                   onChange={(e) => updateFixture(i, "name", e.target.value)}
                 />
+
                 <input
                   type="number"
-                  placeholder="Price"
-                  value={f.price}
-                  onChange={(e) => updateFixture(i, "price", e.target.value)}
+                  placeholder="Material $"
+                  value={f.material}
+                  onChange={(e) => updateFixture(i, "material", e.target.value)}
+                />
+
+                <input
+                  type="number"
+                  placeholder="Labour $"
+                  value={f.labour}
+                  onChange={(e) => updateFixture(i, "labour", e.target.value)}
+                />
+
+                <input
+                  type="number"
+                  placeholder="Qty"
+                  value={f.qty}
+                  onChange={(e) => updateFixture(i, "qty", e.target.value)}
                 />
               </div>
             ))}
