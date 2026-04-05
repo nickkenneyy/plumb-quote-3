@@ -19,9 +19,9 @@ export default function App() {
 
   const [logo, setLogo] = useState(null);
 
-  // 🔥 UPDATED FIXTURE SYSTEM
+  // 🔥 FIXTURE (LABOUR ONLY)
   const [fixtures, setFixtures] = useState([
-    { name: "", material: 0, labour: 0, qty: 1 }
+    { name: "", labour: 0, qty: 1 }
   ]);
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export default function App() {
   };
 
   const addFixture = () => {
-    setFixtures([...fixtures, { name: "", material: 0, labour: 0, qty: 1 }]);
+    setFixtures([...fixtures, { name: "", labour: 0, qty: 1 }]);
   };
 
   const updateFixture = (index, field, value) => {
@@ -47,12 +47,12 @@ export default function App() {
     setFixtures(updated);
   };
 
-  // 🔥 CALCULATIONS
+  // CALCULATIONS
   const laborCost = hourlyRate * hours;
   const materials = materialCost * markup;
 
   const fixtureTotal = fixtures.reduce((sum, f) => {
-    const line = (Number(f.material) + Number(f.labour)) * Number(f.qty);
+    const line = Number(f.labour) * Number(f.qty);
     return sum + line;
   }, 0);
 
@@ -69,7 +69,7 @@ export default function App() {
     reader.readAsDataURL(e.target.files[0]);
   };
 
-  // 🔥 PDF
+  // PDF
   const generatePDF = () => {
     const doc = new jsPDF();
 
@@ -91,8 +91,7 @@ export default function App() {
     if (jobType === "Fixture Install") {
       fixtures.forEach((f) => {
         if (f.name) {
-          const lineTotal =
-            (Number(f.material) + Number(f.labour)) * Number(f.qty);
+          const lineTotal = Number(f.labour) * Number(f.qty);
 
           doc.text(`${f.name} x${f.qty}`, 20, y);
           doc.text(`$${lineTotal.toFixed(2)}`, 150, y);
@@ -156,7 +155,7 @@ export default function App() {
 
         {jobType === "Fixture Install" ? (
           <>
-            <h3>Fixtures</h3>
+            <h3>Fixtures (Labour Only)</h3>
 
             {fixtures.map((f, i) => (
               <div key={i} style={{ display: "flex", gap: 10 }}>
@@ -164,13 +163,6 @@ export default function App() {
                   placeholder="Fixture"
                   value={f.name}
                   onChange={(e) => updateFixture(i, "name", e.target.value)}
-                />
-
-                <input
-                  type="number"
-                  placeholder="Material $"
-                  value={f.material}
-                  onChange={(e) => updateFixture(i, "material", e.target.value)}
                 />
 
                 <input
