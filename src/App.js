@@ -1,16 +1,38 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { auth, googleProvider } from "./firebase";
+import { signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
 import { jsPDF } from "jspdf";
-import logo from "./logo.png";
 
 export default function App() {
-  const [companyName, setCompanyName] = useState("");
+  const [user, setUser] = useState(null);
+
+  // EXISTING STATES
   const [jobType, setJobType] = useState("Drain Cleaning");
   const [hours, setHours] = useState(1);
   const [hourlyRate, setHourlyRate] = useState(120);
   const [materialCost, setMaterialCost] = useState(0);
   const [markup, setMarkup] = useState(1.4);
   const [clientName, setClientName] = useState("");
+  const [companyName, setCompanyName] = useState("Plumb Quote 3");
   const [materialsList, setMaterialsList] = useState("");
+
+  // CHECK LOGIN
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // LOGIN FUNCTION
+  const handleLogin = async () => {
+    await signInWithPopup(auth, googleProvider);
+  };
+
+  // LOGOUT
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
 
   // CALCULATIONS
   const laborCost = hourlyRate * hours;
@@ -18,125 +40,91 @@ export default function App() {
   const subtotal = laborCost + materials;
   const total = subtotal;
 
-  // PDF
+  // PDF FUNCTION (LOCKED IF NOT LOGGED IN)
   const generatePDF = () => {
+    if (!user) {
+      alert("Login required to download PDF");
+      return;
+    }
+
     const doc = new jsPDF();
 
-    try {
-      doc.addImage(logo, "PNG", 20, 10, 40, 20);
-    } catch {}
-
-    // COMPANY NAME (NEW)
-    doc.setFontSize(16);
-    doc.text(companyName || "Your Company", 70, 20);
-
-    doc.setFontSize(10);
-    doc.text("Professional Plumbing Services", 70, 28);
-
-    doc.line(20, 50, 190, 50);
+    doc.setFontSize(18);
+    doc.text(companyName, 20, 20);
 
     doc.setFontSize(12);
-    doc.text(`Client: ${clientName || "N/A"}`, 20, 65);
-    doc.text(`Service: ${jobType}`, 20, 75);
+    doc.text(`Client: ${clientName}`, 20, 40);
+    doc.text(`Job Type: ${jobType}`, 20, 50);
+    doc.text(`Hourly Rate: $${hourlyRate}`, 20, 60);
+    doc.text(`Hours: ${hours}`, 20, 70);
 
-    doc.text("Materials Used:", 20, 85);
-    doc.text(materialsList || "N/A", 20, 92);
+    doc.text(`Materials Used:`, 20, 90);
+    doc.text(materialsList || "N/A", 20, 100);
 
-    doc.text("Description", 20, 110);
-    doc.text("Amount", 160, 110);
-    doc.line(20, 115, 190, 115);
-
-    doc.text("Labor", 20, 130);
-    doc.text(`$${laborCost.toFixed(2)}`, 160, 130);
-
-    doc.text("Materials", 20, 140);
-    doc.text(`$${materials.toFixed(2)}`, 160, 140);
-
-    doc.text("Subtotal", 20, 150);
-    doc.text(`$${subtotal.toFixed(2)}`, 160, 150);
+    doc.text(`Labor: $${laborCost.toFixed(2)}`, 20, 120);
+    doc.text(`Materials: $${materials.toFixed(2)}`, 20, 130);
+    doc.text(`Subtotal: $${subtotal.toFixed(2)}`, 20, 140);
 
     doc.setFontSize(14);
-    doc.text("TOTAL", 20, 170);
-    doc.text(`$${total.toFixed(2)}`, 160, 170);
-
-    doc.setFontSize(10);
-    doc.text("Thank you for your business.", 20, 190);
+    doc.text(`TOTAL: $${total.toFixed(2)}`, 20, 160);
 
     doc.save(`${clientName || "quote"}.pdf`);
   };
 
+  // 🔒 LOGIN SCREEN
+  if (!user) {
+    return (
+      <div style={styles.center}>
+        <h1>Plumb Quote 3</h1>
+        <p>Login to access full features</p>
+        <button style={styles.button} onClick={handleLogin}>
+          Login with Google
+        </button>
+      </div>
+    );
+  }
+
+  // ✅ MAIN APP
   return (
     <div style={styles.container}>
-      <img src={logo} alt="logo" style={{ width: "120px", marginBottom: "10px" }} />
-      <h1 style={styles.title}>Plumb Quote 3</h1>
+      <h1>{companyName}</h1>
+
+      <button onClick={handleLogout} style={styles.logout}>
+        Logout
+      </button>
 
       <div style={styles.card}>
-        {/* NEW COMPANY NAME INPUT */}
         <label>Company Name</label>
-        <input
-          style={styles.input}
-          value={companyName}
-          onChange={(e) => setCompanyName(e.target.value)}
-        />
+        <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
 
         <label>Client Name</label>
-        <input
-          style={styles.input}
-          value={clientName}
-          onChange={(e) => setClientName(e.target.value)}
-        />
+        <input value={clientName} onChange={(e) => setClientName(e.target.value)} />
 
         <label>Job Type</label>
-        <select
-          style={styles.input}
-          value={jobType}
-          onChange={(e) => setJobType(e.target.value)}
-        >
+        <select value={jobType} onChange={(e) => setJobType(e.target.value)}>
           <option>Drain Cleaning</option>
           <option>Fixture Install</option>
           <option>Pipe Repair</option>
           <option>Emergency Call</option>
         </select>
 
-        <label>Hourly Rate ($)</label>
-        <input
-          type="number"
-          style={styles.input}
-          value={hourlyRate}
-          onChange={(e) => setHourlyRate(Number(e.target.value))}
-        />
+        <label>Hourly Rate</label>
+        <input type="number" value={hourlyRate} onChange={(e) => setHourlyRate(Number(e.target.value))} />
 
         <label>Hours</label>
-        <input
-          type="number"
-          style={styles.input}
-          value={hours}
-          onChange={(e) => setHours(Number(e.target.value))}
-        />
+        <input type="number" value={hours} onChange={(e) => setHours(Number(e.target.value))} />
 
-        <label>Material Cost ($)</label>
-        <input
-          type="number"
-          style={styles.input}
-          value={materialCost}
-          onChange={(e) => setMaterialCost(Number(e.target.value))}
-        />
+        <label>Material Cost</label>
+        <input type="number" value={materialCost} onChange={(e) => setMaterialCost(Number(e.target.value))} />
+
+        <label>Material Markup</label>
+        <input type="number" step="0.1" value={markup} onChange={(e) => setMarkup(Number(e.target.value))} />
 
         <label>Materials Used</label>
         <textarea
-          style={styles.input}
-          placeholder="e.g. PVC pipe, wax ring..."
+          placeholder="PVC pipe, fittings, etc..."
           value={materialsList}
           onChange={(e) => setMaterialsList(e.target.value)}
-        />
-
-        <label>Material Markup</label>
-        <input
-          type="number"
-          step="0.1"
-          style={styles.input}
-          value={markup}
-          onChange={(e) => setMarkup(Number(e.target.value))}
         />
 
         <div style={styles.result}>
@@ -157,43 +145,31 @@ export default function App() {
 const styles = {
   container: {
     fontFamily: "Arial",
-    background: "#0f172a",
-    minHeight: "100vh",
-    color: "white",
-    padding: "40px",
-  },
-  title: {
-    fontSize: "32px",
-    marginBottom: "20px",
+    padding: 20,
+    maxWidth: 500,
+    margin: "auto",
   },
   card: {
-    background: "#1e293b",
-    padding: "20px",
-    borderRadius: "10px",
-    maxWidth: "400px",
-  },
-  input: {
-    width: "100%",
-    padding: "10px",
-    marginBottom: "10px",
-    borderRadius: "6px",
-    border: "none",
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
   },
   result: {
-    marginTop: "15px",
-    background: "#0f172a",
-    padding: "10px",
-    borderRadius: "6px",
+    marginTop: 10,
   },
   button: {
-    marginTop: "15px",
-    padding: "12px",
-    width: "100%",
-    background: "#2563eb",
+    marginTop: 15,
+    padding: 10,
+    background: "black",
     color: "white",
     border: "none",
-    borderRadius: "6px",
-    fontWeight: "bold",
     cursor: "pointer",
+  },
+  logout: {
+    marginBottom: 10,
+  },
+  center: {
+    textAlign: "center",
+    marginTop: 100,
   },
 };
