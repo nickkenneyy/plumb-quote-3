@@ -61,7 +61,9 @@ export default function App() {
   const materials    = materialCost * markup;
   const fixtureTotal = fixtures.reduce((s, f) => s + Number(f.labour) * Number(f.qty), 0);
   const subtotal     = jobType === "Fixture Install" ? fixtureTotal + materials : laborCost + materials;
-  const total        = subtotal;
+  const HST_RATE     = 0.13;
+  const hst          = subtotal * HST_RATE;
+  const total        = subtotal + hst;
 
   const generatePDF = () => {
     const doc = new jsPDF();
@@ -89,6 +91,13 @@ export default function App() {
     doc.text("Materials", 20, y);
     doc.text(`$${materials.toFixed(2)}`, 150, y);
     y += 15;
+    doc.setFontSize(12);
+    doc.text("Subtotal", 20, y);
+    doc.text(`$${subtotal.toFixed(2)}`, 150, y);
+    y += 10;
+    doc.text("HST (13%)", 20, y);
+    doc.text(`$${hst.toFixed(2)}`, 150, y);
+    y += 10;
     doc.setFontSize(14);
     doc.text(`TOTAL: $${total.toFixed(2)}`, 20, y);
     doc.setFontSize(10);
@@ -156,6 +165,7 @@ export default function App() {
           <div>
             <div style={s.totalLabel}>Estimated Total</div>
             <div style={s.totalAmount}>${total.toFixed(2)}</div>
+          <div style={{fontSize:"0.75rem", color:"rgba(255,255,255,0.45)", marginTop:4}}>incl. HST (13%)</div>
           </div>
           <button
             style={pdfSuccess ? {...s.pdfBtn, ...s.pdfBtnSuccess} : s.pdfBtn}
@@ -309,6 +319,14 @@ export default function App() {
           <div style={s.summaryLine}>
             <span>Materials (incl. markup)</span>
             <span>${materials.toFixed(2)}</span>
+          </div>
+          <div style={{...s.summaryLine, justifyContent: "space-between"}}>
+            <span>Subtotal</span>
+            <span>${subtotal.toFixed(2)}</span>
+          </div>
+          <div style={{...s.summaryLine, color: C.sky}}>
+            <span>HST (13%)</span>
+            <span>${hst.toFixed(2)}</span>
           </div>
           <div style={s.summaryDivider} />
           <div style={s.summaryTotal}>
