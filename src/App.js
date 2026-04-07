@@ -21,26 +21,107 @@ const C = {
 
 const JOB_TYPES = ["Drain Cleaning", "Fixture Install", "Pipe Repair", "Rough In"];
 
-// ── Default Ontario-based pipe prices per foot (editable baseline)
-// Estimates loosely based on Home Depot CA / Wolseley / Noble Trade
-// Treat as starting values only — not guaranteed accurate
-const DEFAULT_PIPES = [
-  { type: "PVC",    pricePerFt: 1.20, length: 0 },
-  { type: "ABS",    pricePerFt: 1.45, length: 0 },
-  { type: "Copper", pricePerFt: 4.80, length: 0 },
-  { type: "PEX",    pricePerFt: 1.10, length: 0 },
+// ─────────────────────────────────────────────────────────────
+// PIPE SIZING PRICING
+// Ontario baseline estimates — Home Depot CA / Wolseley / Noble Trade
+// All values are editable by the user in-app
+// ─────────────────────────────────────────────────────────────
+const PIPE_SIZES = ["1/4\"", "1/2\"", "3/4\"", "1\"", "1.5\"", "2\"", "3\"", "4\"", "6\""];
+
+const PIPE_PRICING = {
+  PVC: {
+    "1/4\"": 0.65,  "1/2\"": 1.10,  "3/4\"": 1.35,
+    "1\"":   1.85,  "1.5\"": 2.60,  "2\"":   3.50,
+    "3\"":   5.20,  "4\"":   7.80,  "6\"":  13.50,
+  },
+  ABS: {
+    "1/4\"": 0.75,  "1/2\"": 1.25,  "3/4\"": 1.55,
+    "1\"":   2.10,  "1.5\"": 2.90,  "2\"":   3.90,
+    "3\"":   6.00,  "4\"":   8.80,  "6\"":  15.20,
+  },
+  Copper: {
+    "1/4\"": 2.40,  "1/2\"": 3.80,  "3/4\"": 5.60,
+    "1\"":   8.20,  "1.5\"": 12.50, "2\"":  17.00,
+    "3\"":  28.00,  "4\"":  42.00,  "6\"":  72.00,
+  },
+  PEX: {
+    "1/4\"": 0.45,  "1/2\"": 0.90,  "3/4\"": 1.20,
+    "1\"":   1.65,  "1.5\"": 2.40,  "2\"":   3.20,
+    "3\"":   4.80,  "4\"":   7.20,  "6\"":  11.50,
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// FITTING PRICING
+// Keyed by material → fitting key → size → unit price
+// ─────────────────────────────────────────────────────────────
+const FITTING_SIZES = ["1/2\"", "3/4\"", "1\"", "1.5\"", "2\"", "3\"", "4\""];
+
+const FITTING_KEYS = [
+  { key: "elbow_90", label: "90\u00b0 Elbow" },
+  { key: "elbow_45", label: "45\u00b0 Elbow" },
+  { key: "tee",      label: "Tee"            },
+  { key: "coupling", label: "Coupling"        },
+  { key: "reducer",  label: "Reducer"         },
+  { key: "cap",      label: "Cap"             },
 ];
 
-// ── Default Ontario-based fitting prices (editable baseline)
-const DEFAULT_FITTINGS = [
-  { name: "90\u00b0 Elbow", unitPrice: 2.50, qty: 0 },
-  { name: "45\u00b0 Elbow", unitPrice: 2.25, qty: 0 },
-  { name: "Tee",            unitPrice: 3.20, qty: 0 },
-  { name: "Coupling",       unitPrice: 1.80, qty: 0 },
-  { name: "Reducer",        unitPrice: 2.75, qty: 0 },
-  { name: "Cap",            unitPrice: 1.50, qty: 0 },
+const FITTING_PRICING = {
+  PVC: {
+    elbow_90: { "1/2\"": 1.10, "3/4\"": 1.45, "1\"": 2.20, "1.5\"": 3.50, "2\"": 5.00, "3\"": 8.50,  "4\"": 13.00 },
+    elbow_45: { "1/2\"": 1.00, "3/4\"": 1.30, "1\"": 2.00, "1.5\"": 3.20, "2\"": 4.50, "3\"": 7.80,  "4\"": 12.00 },
+    tee:      { "1/2\"": 1.40, "3/4\"": 1.80, "1\"": 2.80, "1.5\"": 4.20, "2\"": 6.20, "3\"": 10.50, "4\"": 16.00 },
+    coupling: { "1/2\"": 0.75, "3/4\"": 0.95, "1\"": 1.50, "1.5\"": 2.40, "2\"": 3.60, "3\"": 6.00,  "4\"": 9.50  },
+    reducer:  { "1/2\"": 1.20, "3/4\"": 1.55, "1\"": 2.40, "1.5\"": 3.80, "2\"": 5.50, "3\"": 9.20,  "4\"": 14.50 },
+    cap:      { "1/2\"": 0.60, "3/4\"": 0.80, "1\"": 1.20, "1.5\"": 1.90, "2\"": 2.80, "3\"": 4.80,  "4\"": 7.50  },
+  },
+  ABS: {
+    elbow_90: { "1/2\"": 1.30, "3/4\"": 1.70, "1\"": 2.60, "1.5\"": 4.00, "2\"": 5.80, "3\"": 9.80,  "4\"": 15.00 },
+    elbow_45: { "1/2\"": 1.15, "3/4\"": 1.50, "1\"": 2.30, "1.5\"": 3.60, "2\"": 5.20, "3\"": 8.80,  "4\"": 13.50 },
+    tee:      { "1/2\"": 1.60, "3/4\"": 2.10, "1\"": 3.20, "1.5\"": 5.00, "2\"": 7.20, "3\"": 12.00, "4\"": 18.50 },
+    coupling: { "1/2\"": 0.90, "3/4\"": 1.15, "1\"": 1.75, "1.5\"": 2.80, "2\"": 4.10, "3\"": 7.00,  "4\"": 11.00 },
+    reducer:  { "1/2\"": 1.40, "3/4\"": 1.80, "1\"": 2.75, "1.5\"": 4.30, "2\"": 6.20, "3\"": 10.50, "4\"": 16.50 },
+    cap:      { "1/2\"": 0.70, "3/4\"": 0.95, "1\"": 1.40, "1.5\"": 2.20, "2\"": 3.20, "3\"": 5.50,  "4\"": 8.50  },
+  },
+  Copper: {
+    elbow_90: { "1/2\"": 4.50, "3/4\"": 6.80, "1\"": 10.50, "1.5\"": 16.00, "2\"": 24.00, "3\"": 42.00, "4\"": 68.00 },
+    elbow_45: { "1/2\"": 4.00, "3/4\"": 6.20, "1\"": 9.50,  "1.5\"": 14.50, "2\"": 21.50, "3\"": 38.00, "4\"": 62.00 },
+    tee:      { "1/2\"": 5.50, "3/4\"": 8.20, "1\"": 12.50, "1.5\"": 19.00, "2\"": 28.00, "3\"": 50.00, "4\"": 80.00 },
+    coupling: { "1/2\"": 2.80, "3/4\"": 4.20, "1\"": 6.50,  "1.5\"": 10.00, "2\"": 15.00, "3\"": 26.00, "4\"": 42.00 },
+    reducer:  { "1/2\"": 3.50, "3/4\"": 5.20, "1\"": 8.00,  "1.5\"": 12.50, "2\"": 18.50, "3\"": 32.00, "4\"": 52.00 },
+    cap:      { "1/2\"": 2.20, "3/4\"": 3.30, "1\"": 5.00,  "1.5\"": 7.80,  "2\"": 11.50, "3\"": 20.00, "4\"": 32.00 },
+  },
+  PEX: {
+    elbow_90: { "1/2\"": 2.20, "3/4\"": 3.20, "1\"": 5.00,  "1.5\"": 7.80,  "2\"": 11.50, "3\"": 20.00, "4\"": 32.00 },
+    elbow_45: { "1/2\"": 2.00, "3/4\"": 2.90, "1\"": 4.50,  "1.5\"": 7.00,  "2\"": 10.50, "3\"": 18.00, "4\"": 29.00 },
+    tee:      { "1/2\"": 2.80, "3/4\"": 4.00, "1\"": 6.20,  "1.5\"": 9.50,  "2\"": 14.00, "3\"": 24.00, "4\"": 38.00 },
+    coupling: { "1/2\"": 1.40, "3/4\"": 2.00, "1\"": 3.20,  "1.5\"": 5.00,  "2\"": 7.50,  "3\"": 13.00, "4\"": 21.00 },
+    reducer:  { "1/2\"": 1.80, "3/4\"": 2.60, "1\"": 4.00,  "1.5\"": 6.20,  "2\"": 9.20,  "3\"": 16.00, "4\"": 26.00 },
+    cap:      { "1/2\"": 1.10, "3/4\"": 1.60, "1\"": 2.50,  "1.5\"": 3.90,  "2\"": 5.80,  "3\"": 10.00, "4\"": 16.00 },
+  },
+};
+
+// ─────────────────────────────────────────────────────────────
+// DEFAULT STATE BUILDERS
+// ─────────────────────────────────────────────────────────────
+const buildDefaultPipes = () => [
+  { type: "PVC",    size: "1/2\"", pricePerFt: PIPE_PRICING.PVC["1/2\""],    length: 0 },
+  { type: "ABS",    size: "1/2\"", pricePerFt: PIPE_PRICING.ABS["1/2\""],    length: 0 },
+  { type: "Copper", size: "1/2\"", pricePerFt: PIPE_PRICING.Copper["1/2\""], length: 0 },
+  { type: "PEX",    size: "1/2\"", pricePerFt: PIPE_PRICING.PEX["1/2\""],    length: 0 },
 ];
 
+const buildDefaultFittings = () =>
+  FITTING_KEYS.map(({ key, label }) => ({
+    key,
+    label,
+    material:  "PVC",
+    size:      "1/2\"",
+    unitPrice: FITTING_PRICING.PVC[key]["1/2\""],
+    qty:       0,
+  }));
+
+// ─────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser]               = useState(null);
   const [companyName, setCompanyName] = useState("Plumb Quote 3");
@@ -56,8 +137,8 @@ export default function App() {
   const [pdfSuccess, setPdfSuccess]   = useState(false);
 
   // ── Rough-In state
-  const [pipes, setPipes]           = useState(DEFAULT_PIPES.map(p => ({ ...p })));
-  const [fittings, setFittings]     = useState(DEFAULT_FITTINGS.map(f => ({ ...f })));
+  const [pipes, setPipes]             = useState(buildDefaultPipes());
+  const [fittings, setFittings]       = useState(buildDefaultFittings());
   const [roughLabour, setRoughLabour] = useState(0);
 
   useEffect(() => {
@@ -71,9 +152,7 @@ export default function App() {
   const addFixture    = () => setFixtures([...fixtures, { name: "", labour: 0, qty: 1 }]);
   const removeFixture = (i) => setFixtures(fixtures.filter((_, idx) => idx !== i));
   const updateFixture = (i, field, value) => {
-    const updated = [...fixtures];
-    updated[i][field] = value;
-    setFixtures(updated);
+    const u = [...fixtures]; u[i][field] = value; setFixtures(u);
   };
 
   const handleLogoUpload = (e) => {
@@ -82,25 +161,41 @@ export default function App() {
     reader.readAsDataURL(e.target.files[0]);
   };
 
+  // ── Pipe updater — auto-updates price when type or size changes
   const updatePipe = (i, field, value) => {
-    const updated = [...pipes];
-    updated[i][field] = value;
-    setPipes(updated);
+    const u = [...pipes];
+    u[i][field] = value;
+    // If type or size changed, auto-fill price (user can still override)
+    if (field === "type" || field === "size") {
+      const t = field === "type" ? value : u[i].type;
+      const sz = field === "size" ? value : u[i].size;
+      if (PIPE_PRICING[t] && PIPE_PRICING[t][sz] !== undefined) {
+        u[i].pricePerFt = PIPE_PRICING[t][sz];
+      }
+    }
+    setPipes(u);
   };
 
+  // ── Fitting updater — auto-updates price when material or size changes
   const updateFitting = (i, field, value) => {
-    const updated = [...fittings];
-    updated[i][field] = value;
-    setFittings(updated);
+    const u = [...fittings];
+    u[i][field] = value;
+    if (field === "material" || field === "size") {
+      const mat = field === "material" ? value : u[i].material;
+      const sz  = field === "size"     ? value : u[i].size;
+      const fp  = FITTING_PRICING[mat]?.[u[i].key]?.[sz];
+      if (fp !== undefined) u[i].unitPrice = fp;
+    }
+    setFittings(u);
   };
 
   // ── Calculations
-  const laborCost    = hourlyRate * hours;
-  const materials    = materialCost * markup;
-  const fixtureTotal = fixtures.reduce((s, f) => s + Number(f.labour) * Number(f.qty), 0);
-  const pipesTotal   = pipes.reduce((s, p) => s + Number(p.length) * Number(p.pricePerFt), 0);
+  const laborCost     = hourlyRate * hours;
+  const materials     = materialCost * markup;
+  const fixtureTotal  = fixtures.reduce((s, f) => s + Number(f.labour) * Number(f.qty), 0);
+  const pipesTotal    = pipes.reduce((s, p) => s + Number(p.length) * Number(p.pricePerFt), 0);
   const fittingsTotal = fittings.reduce((s, f) => s + Number(f.qty) * Number(f.unitPrice), 0);
-  const roughInTotal = pipesTotal + fittingsTotal + Number(roughLabour);
+  const roughInTotal  = pipesTotal + fittingsTotal + Number(roughLabour);
 
   const subtotal =
     jobType === "Fixture Install" ? fixtureTotal + materials
@@ -111,118 +206,232 @@ export default function App() {
   const hst      = subtotal * HST_RATE;
   const total    = subtotal + hst;
 
-  // ── PDF Generation
+  // ─────────────────────────────────────────────────────────────
+  // PDF GENERATION
+  // ─────────────────────────────────────────────────────────────
   const generatePDF = () => {
     const doc = new jsPDF();
-    if (logo) doc.addImage(logo, "PNG", 150, 10, 40, 20);
-    doc.setFontSize(20);
-    doc.text(companyName, 20, 20);
-    doc.setFontSize(12);
-    doc.text("Client: " + clientName, 20, 35);
-    doc.text("Job Type: " + jobType, 20, 45);
-    doc.line(20, 50, 190, 50);
-    let y = 65;
+    const pageW = 210;
+    const L = 15, R = pageW - 15;
 
+    // ── Header
+    if (logo) doc.addImage(logo, "PNG", R - 40, 10, 40, 20);
+    doc.setFontSize(22);
+    doc.setTextColor(13, 31, 60);
+    doc.text(companyName, L, 22);
+    doc.setFontSize(10);
+    doc.setTextColor(99, 117, 146);
+    doc.text("Client: " + (clientName || "—"), L, 32);
+    doc.text("Job Type: " + jobType, L, 39);
+    doc.text("Date: " + new Date().toLocaleDateString("en-CA"), L, 46);
+    doc.setDrawColor(212, 225, 245);
+    doc.setLineWidth(0.5);
+    doc.line(L, 51, R, 51);
+
+    let y = 60;
+
+    const sectionHeader = (title) => {
+      doc.setFillColor(240, 245, 252);
+      doc.roundedRect(L, y - 5, R - L, 10, 2, 2, "F");
+      doc.setFontSize(11);
+      doc.setTextColor(13, 31, 60);
+      doc.setFont(undefined, "bold");
+      doc.text(title, L + 3, y + 2);
+      doc.setFont(undefined, "normal");
+      y += 12;
+    };
+
+    const colHeader = (cols) => {
+      doc.setFontSize(8);
+      doc.setTextColor(99, 117, 146);
+      cols.forEach(([txt, x, align]) => {
+        if (align === "right") {
+          const w = doc.getTextWidth(txt);
+          doc.text(txt, x - w, y);
+        } else {
+          doc.text(txt, x, y);
+        }
+      });
+      y += 4;
+      doc.setDrawColor(212, 225, 245);
+      doc.setLineWidth(0.3);
+      doc.line(L, y, R, y);
+      y += 6;
+    };
+
+    const dataRow = (cols, shade) => {
+      if (shade) {
+        doc.setFillColor(248, 251, 255);
+        doc.rect(L, y - 5, R - L, 8, "F");
+      }
+      doc.setFontSize(9);
+      doc.setTextColor(42, 58, 82);
+      cols.forEach(([txt, x, align]) => {
+        if (align === "right") {
+          const w = doc.getTextWidth(String(txt));
+          doc.text(String(txt), x - w, y);
+        } else {
+          doc.text(String(txt), x, y);
+        }
+      });
+      y += 9;
+    };
+
+    const subtotalLine = (label, val) => {
+      doc.setFontSize(9);
+      doc.setTextColor(99, 117, 146);
+      doc.text(label, 130, y);
+      doc.setTextColor(13, 31, 60);
+      doc.setFont(undefined, "bold");
+      const w = doc.getTextWidth("$" + val);
+      doc.text("$" + val, R - w, y);
+      doc.setFont(undefined, "normal");
+      y += 8;
+    };
+
+    // ── ROUGH IN PDF
     if (jobType === "Rough In") {
-      doc.setFontSize(13);
-      doc.setTextColor(13, 31, 60);
-      doc.text("PIPING", 20, y); y += 8;
-      doc.setFontSize(10);
-      doc.setTextColor(99, 117, 146);
-      doc.text("Type", 20, y); doc.text("Length (ft)", 80, y);
-      doc.text("$/ft", 130, y); doc.text("Cost", 165, y); y += 6;
-      doc.line(20, y, 190, y); y += 8;
-      doc.setTextColor(42, 58, 82);
-      pipes.forEach((p) => {
-        if (Number(p.length) > 0) {
-          const cost = Number(p.length) * Number(p.pricePerFt);
-          doc.text(p.type, 20, y);
-          doc.text(p.length + " ft", 80, y);
-          doc.text("$" + Number(p.pricePerFt).toFixed(2), 130, y);
-          doc.text("$" + cost.toFixed(2), 165, y);
-          y += 9;
-        }
-      });
-      doc.setTextColor(99, 117, 146);
-      doc.text("Piping Subtotal", 130, y);
-      doc.setTextColor(42, 58, 82);
-      doc.text("$" + pipesTotal.toFixed(2), 165, y); y += 14;
 
-      doc.setFontSize(13);
-      doc.setTextColor(13, 31, 60);
-      doc.text("FITTINGS", 20, y); y += 8;
-      doc.setFontSize(10);
-      doc.setTextColor(99, 117, 146);
-      doc.text("Fitting", 20, y); doc.text("Qty", 100, y);
-      doc.text("Unit Price", 130, y); doc.text("Total", 165, y); y += 6;
-      doc.line(20, y, 190, y); y += 8;
-      doc.setTextColor(42, 58, 82);
-      fittings.forEach((f) => {
-        if (Number(f.qty) > 0) {
-          const cost = Number(f.qty) * Number(f.unitPrice);
-          doc.text(f.name, 20, y);
-          doc.text(String(f.qty), 100, y);
-          doc.text("$" + Number(f.unitPrice).toFixed(2), 130, y);
-          doc.text("$" + cost.toFixed(2), 165, y);
-          y += 9;
-        }
-      });
-      doc.setTextColor(99, 117, 146);
-      doc.text("Fittings Subtotal", 130, y);
-      doc.setTextColor(42, 58, 82);
-      doc.text("$" + fittingsTotal.toFixed(2), 165, y); y += 14;
+      sectionHeader("Rough-In Piping");
+      colHeader([
+        ["Pipe Type", L + 2, "left"],
+        ["Size",      65,    "left"],
+        ["Length",    100,   "left"],
+        ["$/ft",      135,   "left"],
+        ["Cost",      R,     "right"],
+      ]);
+
+      const activePipes = pipes.filter(p => Number(p.length) > 0);
+      if (activePipes.length === 0) {
+        doc.setFontSize(9); doc.setTextColor(99, 117, 146);
+        doc.text("No piping entered.", L + 2, y); y += 9;
+      } else {
+        activePipes.forEach((p, idx) => {
+          const cost = (Number(p.length) * Number(p.pricePerFt)).toFixed(2);
+          dataRow([
+            [p.type,                              L + 2, "left"],
+            [p.size,                              65,    "left"],
+            [p.length + " ft",                   100,   "left"],
+            ["$" + Number(p.pricePerFt).toFixed(2), 135, "left"],
+            ["$" + cost,                          R,     "right"],
+          ], idx % 2 === 0);
+        });
+      }
+      subtotalLine("Piping Subtotal", pipesTotal.toFixed(2));
+      y += 4;
+
+      sectionHeader("Rough-In Fittings");
+      colHeader([
+        ["Fitting",   L + 2, "left"],
+        ["Material",  58,    "left"],
+        ["Size",      90,    "left"],
+        ["Qty",       118,   "left"],
+        ["Unit",      145,   "left"],
+        ["Total",     R,     "right"],
+      ]);
+
+      const activeFittings = fittings.filter(f => Number(f.qty) > 0);
+      if (activeFittings.length === 0) {
+        doc.setFontSize(9); doc.setTextColor(99, 117, 146);
+        doc.text("No fittings entered.", L + 2, y); y += 9;
+      } else {
+        activeFittings.forEach((f, idx) => {
+          const lineTotal = (Number(f.qty) * Number(f.unitPrice)).toFixed(2);
+          dataRow([
+            [f.label,                              L + 2, "left"],
+            [f.material,                           58,    "left"],
+            [f.size,                               90,    "left"],
+            [String(f.qty),                        118,   "left"],
+            ["$" + Number(f.unitPrice).toFixed(2), 145,   "left"],
+            ["$" + lineTotal,                      R,     "right"],
+          ], idx % 2 === 0);
+        });
+      }
+      subtotalLine("Fittings Subtotal", fittingsTotal.toFixed(2));
+      y += 4;
 
       if (Number(roughLabour) > 0) {
-        doc.text("Labour", 20, y);
-        doc.text("$" + Number(roughLabour).toFixed(2), 165, y);
-        y += 10;
+        sectionHeader("Labour");
+        dataRow([["Rough-In Labour", L + 2, "left"], ["$" + Number(roughLabour).toFixed(2), R, "right"]], false);
+        y += 2;
       }
-      doc.line(20, y, 190, y); y += 10;
 
+    // ── FIXTURE INSTALL PDF
     } else if (jobType === "Fixture Install") {
-      fixtures.forEach((f) => {
-        if (f.name && f.labour > 0) {
-          doc.text(f.name + " install labour x" + f.qty, 20, y);
-          doc.text("$" + (Number(f.labour) * Number(f.qty)).toFixed(2), 165, y);
-          y += 10;
-        }
+      sectionHeader("Fixture Install Labour");
+      colHeader([
+        ["Fixture",    L + 2, "left"],
+        ["Qty",        120,   "left"],
+        ["Total",      R,     "right"],
+      ]);
+      fixtures.filter(f => f.name && f.labour > 0).forEach((f, idx) => {
+        dataRow([
+          [f.name + " install",                          L + 2, "left"],
+          ["x" + f.qty,                                  120,   "left"],
+          ["$" + (Number(f.labour) * Number(f.qty)).toFixed(2), R, "right"],
+        ], idx % 2 === 0);
       });
+      y += 4;
+
+    // ── STANDARD JOB PDF
     } else {
-      doc.text("Labour", 20, y);
-      doc.text("$" + laborCost.toFixed(2), 165, y); y += 10;
-      doc.text("Materials", 20, y);
-      doc.text("$" + materials.toFixed(2), 165, y); y += 10;
+      sectionHeader("Labour & Materials");
+      dataRow([["Labour",    L + 2, "left"], ["$" + laborCost.toFixed(2),  R, "right"]], false);
+      dataRow([["Materials", L + 2, "left"], ["$" + materials.toFixed(2),  R, "right"]], true);
+      y += 4;
     }
 
-    doc.setFontSize(12);
-    doc.setTextColor(99, 117, 146);
+    // ── TOTALS BLOCK
+    doc.setDrawColor(212, 225, 245);
+    doc.setLineWidth(0.5);
+    doc.line(L, y, R, y); y += 8;
+
+    doc.setFontSize(9); doc.setTextColor(99, 117, 146);
     doc.text("Subtotal", 130, y);
+    const sw = doc.getTextWidth("$" + subtotal.toFixed(2));
     doc.setTextColor(42, 58, 82);
-    doc.text("$" + subtotal.toFixed(2), 165, y); y += 9;
+    doc.text("$" + subtotal.toFixed(2), R - sw, y); y += 8;
+
     doc.setTextColor(99, 117, 146);
     doc.text("HST (13%)", 130, y);
+    const hw = doc.getTextWidth("$" + hst.toFixed(2));
     doc.setTextColor(42, 58, 82);
-    doc.text("$" + hst.toFixed(2), 165, y); y += 9;
-    doc.line(130, y, 190, y); y += 7;
-    doc.setFontSize(14);
-    doc.setTextColor(13, 31, 60);
-    doc.text("TOTAL", 130, y);
-    doc.text("$" + total.toFixed(2), 165, y);
+    doc.text("$" + hst.toFixed(2), R - hw, y); y += 5;
 
+    doc.setDrawColor(13, 31, 60);
+    doc.setLineWidth(0.7);
+    doc.line(130, y, R, y); y += 8;
+
+    doc.setFontSize(13);
+    doc.setTextColor(13, 31, 60);
+    doc.setFont(undefined, "bold");
+    doc.text("TOTAL", 130, y);
+    const tw = doc.getTextWidth("$" + total.toFixed(2));
+    doc.text("$" + total.toFixed(2), R - tw, y);
+    doc.setFont(undefined, "normal");
+
+    // ── Materials note (non-rough-in only)
     if (jobType !== "Rough In" && materialsList) {
-      doc.setFontSize(10);
-      doc.setTextColor(99, 117, 146);
-      doc.text("Materials Used:", 20, y + 15);
+      y += 16;
+      doc.setFontSize(9); doc.setTextColor(99, 117, 146);
+      doc.text("Materials Used:", L, y); y += 6;
       doc.setTextColor(42, 58, 82);
-      doc.text(materialsList, 20, y + 25);
+      doc.text(materialsList, L, y);
     }
+
+    // ── Footer
+    doc.setFontSize(8);
+    doc.setTextColor(180, 195, 215);
+    doc.text("Generated by PlumbQuote 3  •  Prices are estimates only. Verify before submitting.", L, 285);
 
     doc.save((clientName || "quote") + ".pdf");
     setPdfSuccess(true);
     setTimeout(() => setPdfSuccess(false), 3000);
   };
 
-  // ─── LOGIN SCREEN
+  // ─────────────────────────────────────────────────────────────
+  // LOGIN SCREEN
+  // ─────────────────────────────────────────────────────────────
   if (!user) {
     return (
       <div style={s.loginWrap}>
@@ -250,7 +459,9 @@ export default function App() {
     );
   }
 
-  // ─── MAIN APP
+  // ─────────────────────────────────────────────────────────────
+  // MAIN APP
+  // ─────────────────────────────────────────────────────────────
   return (
     <div style={s.appWrap}>
 
@@ -309,78 +520,127 @@ export default function App() {
           </Row>
         </Section>
 
-        {/* ROUGH-IN ESTIMATOR */}
+        {/* ── ROUGH-IN ESTIMATOR ── */}
         {jobType === "Rough In" && (
           <>
-            <Section title="Rough-In — Pipe Types" icon="🔩">
+            {/* PIPING */}
+            <Section title="Rough-In — Piping" icon="🔩">
               <div style={s.roughDisclaimer}>
-                ⚠ Prices are editable baseline estimates based on Ontario supply averages (Home Depot CA, Wolseley, Noble Trade). Adjust to your actual costs.
+                ⚠ Prices auto-fill from Ontario supply baselines (Home Depot CA, Wolseley, Noble Trade). All values are editable — adjust to your actual costs before submitting.
               </div>
+
+              {/* Column headers */}
               <div style={s.roughHeader}>
-                <span style={{ flex: 2 }}>Pipe Type</span>
-                <span style={{ flex: 2 }}>Length (ft)</span>
-                <span style={{ flex: 2 }}>Price / ft ($)</span>
-                <span style={{ flex: 1, textAlign: "right" }}>Cost</span>
+                <span style={{ flex: "0 0 85px" }}>Type</span>
+                <span style={{ flex: "0 0 90px" }}>Size</span>
+                <span style={{ flex: 1 }}>Length (ft)</span>
+                <span style={{ flex: 1 }}>$/ft (editable)</span>
+                <span style={{ flex: "0 0 80px", textAlign: "right" }}>Cost</span>
               </div>
+
               {pipes.map((p, i) => (
                 <div key={i} style={s.roughRow}>
-                  <div style={{ ...s.roughTypeTag, flex: 2 }}>{p.type}</div>
+                  {/* Type dropdown */}
+                  <select
+                    style={{ ...s.input, flex: "0 0 85px" }}
+                    value={p.type}
+                    onChange={(e) => updatePipe(i, "type", e.target.value)}
+                  >
+                    {Object.keys(PIPE_PRICING).map(t => <option key={t}>{t}</option>)}
+                  </select>
+                  {/* Size dropdown */}
+                  <select
+                    style={{ ...s.input, flex: "0 0 90px" }}
+                    value={p.size}
+                    onChange={(e) => updatePipe(i, "size", e.target.value)}
+                  >
+                    {PIPE_SIZES.map(sz => <option key={sz}>{sz}</option>)}
+                  </select>
+                  {/* Length */}
                   <input
-                    style={{ ...s.input, flex: 2 }}
+                    style={{ ...s.input, flex: 1 }}
                     type="number" min="0" placeholder="0"
                     value={p.length || ""}
                     onChange={(e) => updatePipe(i, "length", e.target.value)}
                   />
+                  {/* Price per ft — editable, auto-updated by type/size */}
                   <input
-                    style={{ ...s.input, flex: 2 }}
+                    style={{ ...s.input, flex: 1 }}
                     type="number" min="0" step="0.01"
                     value={p.pricePerFt}
                     onChange={(e) => updatePipe(i, "pricePerFt", e.target.value)}
                   />
-                  <div style={{ ...s.fixtureLineTotal, flex: 1 }}>
+                  <div style={{ ...s.fixtureLineTotal, flex: "0 0 80px" }}>
                     ${(Number(p.length) * Number(p.pricePerFt)).toFixed(2)}
                   </div>
                 </div>
               ))}
+
               <div style={s.subtotalRow}>
                 <span>Piping Subtotal</span>
                 <span style={s.subtotalVal}>${pipesTotal.toFixed(2)}</span>
               </div>
             </Section>
 
+            {/* FITTINGS */}
             <Section title="Rough-In — Fittings" icon="🔧">
+              {/* Column headers */}
               <div style={s.roughHeader}>
-                <span style={{ flex: 3 }}>Fitting</span>
-                <span style={{ flex: 2 }}>Qty</span>
-                <span style={{ flex: 2 }}>Unit Price ($)</span>
-                <span style={{ flex: 1, textAlign: "right" }}>Total</span>
+                <span style={{ flex: "0 0 95px" }}>Fitting</span>
+                <span style={{ flex: "0 0 80px" }}>Material</span>
+                <span style={{ flex: "0 0 80px" }}>Size</span>
+                <span style={{ flex: "0 0 60px" }}>Qty</span>
+                <span style={{ flex: 1 }}>Unit Price ($)</span>
+                <span style={{ flex: "0 0 75px", textAlign: "right" }}>Total</span>
               </div>
+
               {fittings.map((f, i) => (
                 <div key={i} style={s.roughRow}>
-                  <div style={{ ...s.roughTypeTag, flex: 3 }}>{f.name}</div>
+                  {/* Fitting label — fixed */}
+                  <div style={{ ...s.roughTypeTag, flex: "0 0 95px", fontSize: "0.82rem" }}>{f.label}</div>
+                  {/* Material dropdown */}
+                  <select
+                    style={{ ...s.input, flex: "0 0 80px" }}
+                    value={f.material}
+                    onChange={(e) => updateFitting(i, "material", e.target.value)}
+                  >
+                    {Object.keys(FITTING_PRICING).map(m => <option key={m}>{m}</option>)}
+                  </select>
+                  {/* Size dropdown */}
+                  <select
+                    style={{ ...s.input, flex: "0 0 80px" }}
+                    value={f.size}
+                    onChange={(e) => updateFitting(i, "size", e.target.value)}
+                  >
+                    {FITTING_SIZES.map(sz => <option key={sz}>{sz}</option>)}
+                  </select>
+                  {/* Qty */}
                   <input
-                    style={{ ...s.input, flex: 2 }}
+                    style={{ ...s.input, flex: "0 0 60px" }}
                     type="number" min="0" placeholder="0"
                     value={f.qty || ""}
                     onChange={(e) => updateFitting(i, "qty", e.target.value)}
                   />
+                  {/* Unit price — editable, auto-updated by material/size */}
                   <input
-                    style={{ ...s.input, flex: 2 }}
+                    style={{ ...s.input, flex: 1 }}
                     type="number" min="0" step="0.01"
                     value={f.unitPrice}
                     onChange={(e) => updateFitting(i, "unitPrice", e.target.value)}
                   />
-                  <div style={{ ...s.fixtureLineTotal, flex: 1 }}>
+                  <div style={{ ...s.fixtureLineTotal, flex: "0 0 75px" }}>
                     ${(Number(f.qty) * Number(f.unitPrice)).toFixed(2)}
                   </div>
                 </div>
               ))}
+
               <div style={s.subtotalRow}>
                 <span>Fittings Subtotal</span>
                 <span style={s.subtotalVal}>${fittingsTotal.toFixed(2)}</span>
               </div>
             </Section>
 
+            {/* ROUGH-IN LABOUR */}
             <Section title="Rough-In — Labour" icon="👷">
               <Row>
                 <Field label="Labour Cost ($)">
@@ -473,7 +733,7 @@ export default function App() {
               <div style={s.summaryLine}><span>Materials (incl. markup)</span><span>${materials.toFixed(2)}</span></div>
             </>
           )}
-          <div style={{ ...s.summaryLine, justifyContent: "space-between" }}><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
+          <div style={{ ...s.summaryLine }}><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
           <div style={{ ...s.summaryLine, color: C.sky }}><span>HST (13%)</span><span>${hst.toFixed(2)}</span></div>
           <div style={s.summaryDivider} />
           <div style={s.summaryTotal}><span>Total</span><span>${total.toFixed(2)}</span></div>
@@ -499,11 +759,7 @@ function Section({ title, icon, children }) {
     </div>
   );
 }
-
-function Row({ children }) {
-  return <div style={s.row}>{children}</div>;
-}
-
+function Row({ children }) { return <div style={s.row}>{children}</div>; }
 function Field({ label, children }) {
   return (
     <div style={s.field}>
@@ -515,66 +771,26 @@ function Field({ label, children }) {
 
 // ── Styles
 const s = {
-  loginWrap: {
-    minHeight: "100vh",
-    background: "linear-gradient(135deg, #0d1f3c 0%, #1a4b8c 100%)",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    fontFamily: "'DM Sans', sans-serif", padding: 20,
-  },
-  loginCard: {
-    background: "#ffffff", borderRadius: 20,
-    padding: "48px 40px", maxWidth: 420, width: "100%",
-    textAlign: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.25)",
-  },
-  loginIcon: {
-    width: 64, height: 64, background: "#0d1f3c", borderRadius: 16,
-    display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px",
-  },
+  loginWrap: { minHeight: "100vh", background: "linear-gradient(135deg, #0d1f3c 0%, #1a4b8c 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", padding: 20 },
+  loginCard: { background: "#ffffff", borderRadius: 20, padding: "48px 40px", maxWidth: 420, width: "100%", textAlign: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.25)" },
+  loginIcon: { width: 64, height: 64, background: "#0d1f3c", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" },
   loginTitle: { fontFamily: "'DM Serif Display', serif", fontSize: "2rem", color: "#0d1f3c", margin: "0 0 8px" },
   loginSub: { fontSize: "0.95rem", color: "#637592", margin: "0 0 32px" },
-  googleBtn: {
-    display: "flex", alignItems: "center", justifyContent: "center",
-    width: "100%", padding: "14px 20px", background: "#ffffff",
-    border: "1.5px solid #d4e1f5", borderRadius: 10,
-    fontSize: "0.95rem", fontWeight: 600, color: "#2a3a52", cursor: "pointer",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.06)", fontFamily: "'DM Sans', sans-serif",
-  },
+  googleBtn: { display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: "14px 20px", background: "#ffffff", border: "1.5px solid #d4e1f5", borderRadius: 10, fontSize: "0.95rem", fontWeight: 600, color: "#2a3a52", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", fontFamily: "'DM Sans', sans-serif" },
   loginFooter: { marginTop: 24, fontSize: "0.8rem", color: "#637592" },
   appWrap: { minHeight: "100vh", background: "#f0f5fc", fontFamily: "'DM Sans', sans-serif", color: "#2a3a52" },
-  header: {
-    background: "#ffffff", borderBottom: "1px solid #d4e1f5",
-    padding: "0 24px", height: 64,
-    display: "flex", alignItems: "center", justifyContent: "space-between",
-    position: "sticky", top: 0, zIndex: 100,
-    boxShadow: "0 1px 12px rgba(13,31,60,0.07)",
-  },
+  header: { background: "#ffffff", borderBottom: "1px solid #d4e1f5", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 12px rgba(13,31,60,0.07)" },
   headerLeft: { display: "flex", alignItems: "center", gap: 10 },
   headerIcon: { width: 36, height: 36, background: "#0d1f3c", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: "'DM Serif Display', serif", fontSize: "1.15rem", color: "#0d1f3c" },
   headerRight: { display: "flex", alignItems: "center", gap: 12 },
-  avatar: {
-    width: 34, height: 34, borderRadius: "50%", background: "#0d1f3c", color: "#f5a623",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    fontFamily: "'DM Serif Display', serif", fontSize: "1rem",
-  },
-  logoutBtn: {
-    background: "transparent", border: "1px solid #d4e1f5", borderRadius: 8,
-    padding: "6px 14px", fontSize: "0.82rem", color: "#637592",
-    cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
-  },
-  main: { maxWidth: 780, margin: "0 auto", padding: "28px 20px 60px", display: "flex", flexDirection: "column", gap: 20 },
-  totalBanner: {
-    background: "#0d1f3c", borderRadius: 16, padding: "24px 28px",
-    display: "flex", alignItems: "center", justifyContent: "space-between",
-    flexWrap: "wrap", gap: 16, boxShadow: "0 8px 32px rgba(13,31,60,0.18)",
-  },
+  avatar: { width: 34, height: 34, borderRadius: "50%", background: "#0d1f3c", color: "#f5a623", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Serif Display', serif", fontSize: "1rem" },
+  logoutBtn: { background: "transparent", border: "1px solid #d4e1f5", borderRadius: 8, padding: "6px 14px", fontSize: "0.82rem", color: "#637592", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" },
+  main: { maxWidth: 820, margin: "0 auto", padding: "28px 20px 60px", display: "flex", flexDirection: "column", gap: 20 },
+  totalBanner: { background: "#0d1f3c", borderRadius: 16, padding: "24px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16, boxShadow: "0 8px 32px rgba(13,31,60,0.18)" },
   totalLabel: { fontSize: "0.78rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: 4 },
   totalAmount: { fontFamily: "'DM Serif Display', serif", fontSize: "2.6rem", color: "#ffffff", lineHeight: 1 },
-  pdfBtn: {
-    background: "#f5a623", color: "#0d1f3c", border: "none", borderRadius: 10,
-    padding: "13px 24px", fontSize: "0.95rem", fontWeight: 600, cursor: "pointer",
-    boxShadow: "0 4px 16px rgba(245,166,35,0.4)", fontFamily: "'DM Sans', sans-serif",
-  },
+  pdfBtn: { background: "#f5a623", color: "#0d1f3c", border: "none", borderRadius: 10, padding: "13px 24px", fontSize: "0.95rem", fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(245,166,35,0.4)", fontFamily: "'DM Sans', sans-serif" },
   pdfBtnSuccess: { background: "#22c55e", boxShadow: "0 4px 16px rgba(34,197,94,0.4)" },
   section: { background: "#ffffff", borderRadius: 16, border: "1px solid #d4e1f5", overflow: "hidden", boxShadow: "0 2px 12px rgba(13,31,60,0.04)" },
   sectionHeader: { display: "flex", alignItems: "center", gap: 10, padding: "16px 24px", borderBottom: "1px solid #d4e1f5", background: "#f0f5fc" },
@@ -584,64 +800,24 @@ const s = {
   row: { display: "flex", gap: 16, flexWrap: "wrap" },
   field: { display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 140 },
   label: { fontSize: "0.78rem", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "#637592" },
-  input: {
-    padding: "10px 14px", border: "1.5px solid #d4e1f5", borderRadius: 9,
-    fontSize: "0.95rem", color: "#2a3a52", background: "#ffffff", outline: "none",
-    fontFamily: "'DM Sans', sans-serif", width: "100%", boxSizing: "border-box",
-  },
-  fileLabel: {
-    display: "block", padding: "10px 14px", border: "1.5px dashed #d4e1f5",
-    borderRadius: 9, fontSize: "0.9rem", color: "#2e7dd1", cursor: "pointer",
-    textAlign: "center", fontWeight: 500, background: "#f0f5fc",
-  },
-  textarea: {
-    padding: "10px 14px", border: "1.5px solid #d4e1f5", borderRadius: 9,
-    fontSize: "0.9rem", color: "#2a3a52", background: "#ffffff", outline: "none",
-    fontFamily: "'DM Sans', sans-serif", width: "100%", minHeight: 80,
-    resize: "vertical", boxSizing: "border-box",
-  },
-  calcDisplay: {
-    padding: "10px 14px", background: "#f0f5fc", border: "1.5px solid #d4e1f5",
-    borderRadius: 9, fontSize: "1rem", fontWeight: 600, color: "#0d1f3c",
-  },
+  input: { padding: "10px 14px", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "0.92rem", color: "#2a3a52", background: "#ffffff", outline: "none", fontFamily: "'DM Sans', sans-serif", width: "100%", boxSizing: "border-box" },
+  fileLabel: { display: "block", padding: "10px 14px", border: "1.5px dashed #d4e1f5", borderRadius: 9, fontSize: "0.9rem", color: "#2e7dd1", cursor: "pointer", textAlign: "center", fontWeight: 500, background: "#f0f5fc" },
+  textarea: { padding: "10px 14px", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "0.9rem", color: "#2a3a52", background: "#ffffff", outline: "none", fontFamily: "'DM Sans', sans-serif", width: "100%", minHeight: 80, resize: "vertical", boxSizing: "border-box" },
+  calcDisplay: { padding: "10px 14px", background: "#f0f5fc", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "1rem", fontWeight: 600, color: "#0d1f3c" },
   fixtureRow: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" },
-  fixtureLineTotal: { minWidth: 80, padding: "10px 0", fontWeight: 600, color: "#2e7dd1", fontSize: "0.95rem", textAlign: "right" },
-  removeBtn: {
-    background: "transparent", border: "1px solid #d4e1f5", borderRadius: 6,
-    color: "#637592", cursor: "pointer", padding: "6px 10px", fontSize: "0.8rem", lineHeight: 1,
-  },
-  addBtn: {
-    background: "#f0f5fc", border: "1.5px dashed #d4e1f5", borderRadius: 9,
-    color: "#2e7dd1", cursor: "pointer", padding: "10px 16px",
-    fontSize: "0.88rem", fontWeight: 600, fontFamily: "'DM Sans', sans-serif", alignSelf: "flex-start",
-  },
-  subtotalRow: {
-    display: "flex", justifyContent: "space-between", padding: "10px 14px",
-    background: "#f0f5fc", borderRadius: 9, fontSize: "0.9rem", color: "#637592", marginTop: 4,
-  },
+  fixtureLineTotal: { minWidth: 75, padding: "10px 0", fontWeight: 600, color: "#2e7dd1", fontSize: "0.92rem", textAlign: "right" },
+  removeBtn: { background: "transparent", border: "1px solid #d4e1f5", borderRadius: 6, color: "#637592", cursor: "pointer", padding: "6px 10px", fontSize: "0.8rem", lineHeight: 1 },
+  addBtn: { background: "#f0f5fc", border: "1.5px dashed #d4e1f5", borderRadius: 9, color: "#2e7dd1", cursor: "pointer", padding: "10px 16px", fontSize: "0.88rem", fontWeight: 600, fontFamily: "'DM Sans', sans-serif", alignSelf: "flex-start" },
+  subtotalRow: { display: "flex", justifyContent: "space-between", padding: "10px 14px", background: "#f0f5fc", borderRadius: 9, fontSize: "0.9rem", color: "#637592", marginTop: 4 },
   subtotalVal: { fontWeight: 600, color: "#0d1f3c" },
-  roughDisclaimer: {
-    background: "#fffbeb", border: "1px solid #fde68a",
-    borderRadius: 9, padding: "10px 14px", fontSize: "0.8rem", color: "#92400e", lineHeight: 1.5,
-  },
-  roughHeader: {
-    display: "flex", gap: 10, alignItems: "center", padding: "0 4px",
-    fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.05em",
-    textTransform: "uppercase", color: "#637592",
-  },
-  roughRow: { display: "flex", gap: 10, alignItems: "center" },
-  roughTypeTag: {
-    padding: "10px 14px", background: "#f0f5fc", border: "1.5px solid #d4e1f5",
-    borderRadius: 9, fontSize: "0.9rem", fontWeight: 600, color: "#0d1f3c", whiteSpace: "nowrap",
-  },
+  roughDisclaimer: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 9, padding: "10px 14px", fontSize: "0.8rem", color: "#92400e", lineHeight: 1.5 },
+  roughHeader: { display: "flex", gap: 10, alignItems: "center", padding: "0 4px", fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#637592" },
+  roughRow: { display: "flex", gap: 8, alignItems: "center" },
+  roughTypeTag: { padding: "10px 12px", background: "#f0f5fc", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "0.88rem", fontWeight: 600, color: "#0d1f3c", whiteSpace: "nowrap" },
   summaryCard: { background: "#ffffff", border: "1px solid #d4e1f5", borderRadius: 16, padding: "24px", boxShadow: "0 2px 12px rgba(13,31,60,0.04)" },
   summaryTitle: { fontFamily: "'DM Serif Display', serif", fontSize: "1.3rem", color: "#0d1f3c", marginBottom: 16 },
   summaryLine: { display: "flex", justifyContent: "space-between", fontSize: "0.95rem", color: "#637592", padding: "8px 0", borderBottom: "1px solid #d4e1f5" },
   summaryDivider: { margin: "8px 0" },
   summaryTotal: { display: "flex", justifyContent: "space-between", fontFamily: "'DM Serif Display', serif", fontSize: "1.5rem", color: "#0d1f3c", padding: "10px 0 20px" },
-  pdfBtnFull: {
-    display: "block", width: "100%", background: "#f5a623", color: "#0d1f3c",
-    border: "none", borderRadius: 10, padding: "14px", fontSize: "1rem", fontWeight: 600,
-    cursor: "pointer", boxShadow: "0 4px 16px rgba(245,166,35,0.35)", fontFamily: "'DM Sans', sans-serif",
-  },
+  pdfBtnFull: { display: "block", width: "100%", background: "#f5a623", color: "#0d1f3c", border: "none", borderRadius: 10, padding: "14px", fontSize: "1rem", fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(245,166,35,0.35)", fontFamily: "'DM Sans', sans-serif" },
 };
