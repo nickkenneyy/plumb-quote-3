@@ -22,38 +22,45 @@ const C = {
 const JOB_TYPES = ["Drain Cleaning", "Fixture Install", "Pipe Repair", "Rough In"];
 
 // ─────────────────────────────────────────────────────────────
-// PIPE SIZING PRICING
-// Ontario baseline estimates — Home Depot CA / Wolseley / Noble Trade
-// All values are editable by the user in-app
+// PIPE PRICING — Ontario baseline (Home Depot CA / Wolseley / Noble Trade)
+// Price per linear foot in CAD. All values user-editable in-app.
 // ─────────────────────────────────────────────────────────────
 const PIPE_SIZES = ["1/4\"", "1/2\"", "3/4\"", "1\"", "1.5\"", "2\"", "3\"", "4\"", "6\""];
 
 const PIPE_PRICING = {
   PVC: {
-    "1/4\"": 0.65,  "1/2\"": 1.10,  "3/4\"": 1.35,
-    "1\"":   1.85,  "1.5\"": 2.60,  "2\"":   3.50,
-    "3\"":   5.20,  "4\"":   7.80,  "6\"":  13.50,
+    // Schedule 40 PVC DWV pipe $/ft — Home Depot CA / Emco
+    "1/4\"": 0.68,  "1/2\"": 1.15,  "3/4\"": 1.42,
+    "1\"":   1.95,  "1.5\"": 2.75,  "2\"":   3.65,
+    "3\"":   5.50,  "4\"":   8.20,  "6\"":  14.50,
   },
   ABS: {
-    "1/4\"": 0.75,  "1/2\"": 1.25,  "3/4\"": 1.55,
-    "1\"":   2.10,  "1.5\"": 2.90,  "2\"":   3.90,
-    "3\"":   6.00,  "4\"":   8.80,  "6\"":  15.20,
+    // ABS DWV pipe $/ft — slightly higher than PVC in Ontario
+    "1/4\"": 0.78,  "1/2\"": 1.30,  "3/4\"": 1.62,
+    "1\"":   2.20,  "1.5\"": 3.05,  "2\"":   4.10,
+    "3\"":   6.30,  "4\"":   9.25,  "6\"":  16.00,
   },
   Copper: {
-    "1/4\"": 2.40,  "1/2\"": 3.80,  "3/4\"": 5.60,
-    "1\"":   8.20,  "1.5\"": 12.50, "2\"":  17.00,
-    "3\"":  28.00,  "4\"":  42.00,  "6\"":  72.00,
+    // Type L copper $/ft — Wolseley / Noble Trade (copper fluctuates)
+    "1/4\"": 2.60,  "1/2\"": 4.10,  "3/4\"": 6.20,
+    "1\"":   9.00,  "1.5\"": 13.80, "2\"":  19.00,
+    "3\"":  31.00,  "4\"":  47.00,  "6\"":  80.00,
   },
   PEX: {
-    "1/4\"": 0.45,  "1/2\"": 0.90,  "3/4\"": 1.20,
-    "1\"":   1.65,  "1.5\"": 2.40,  "2\"":   3.20,
-    "3\"":   4.80,  "4\"":   7.20,  "6\"":  11.50,
+    // PEX-A tubing $/ft — Uponor / Watts / SharkBite
+    "1/4\"": 0.48,  "1/2\"": 0.95,  "3/4\"": 1.28,
+    "1\"":   1.75,  "1.5\"": 2.55,  "2\"":   3.40,
+    "3\"":   5.10,  "4\"":   7.65,  "6\"":  12.20,
   },
 };
 
 // ─────────────────────────────────────────────────────────────
-// FITTING PRICING
-// Keyed by material → fitting key → size → unit price
+// FITTING PRICING — Ontario baseline unit prices in CAD
+// Each material has genuinely different pricing reflecting real supply costs.
+// PVC/ABS = plastic pressure/DWV fittings
+// Copper   = solder-type (wrought copper) fittings
+// PEX      = expansion or crimp brass/poly fittings
+// Sources: Home Depot CA, Wolseley, Noble Trade, Emco, Ferguson
 // ─────────────────────────────────────────────────────────────
 const FITTING_SIZES = ["1/2\"", "3/4\"", "1\"", "1.5\"", "2\"", "3\"", "4\""];
 
@@ -67,43 +74,62 @@ const FITTING_KEYS = [
 ];
 
 const FITTING_PRICING = {
+  // ── PVC Schedule 40 pressure/DWV fittings (injection-moulded plastic)
+  // Cheapest material — widely available at big box stores
   PVC: {
-    elbow_90: { "1/2\"": 1.10, "3/4\"": 1.45, "1\"": 2.20, "1.5\"": 3.50, "2\"": 5.00, "3\"": 8.50,  "4\"": 13.00 },
-    elbow_45: { "1/2\"": 1.00, "3/4\"": 1.30, "1\"": 2.00, "1.5\"": 3.20, "2\"": 4.50, "3\"": 7.80,  "4\"": 12.00 },
-    tee:      { "1/2\"": 1.40, "3/4\"": 1.80, "1\"": 2.80, "1.5\"": 4.20, "2\"": 6.20, "3\"": 10.50, "4\"": 16.00 },
-    coupling: { "1/2\"": 0.75, "3/4\"": 0.95, "1\"": 1.50, "1.5\"": 2.40, "2\"": 3.60, "3\"": 6.00,  "4\"": 9.50  },
-    reducer:  { "1/2\"": 1.20, "3/4\"": 1.55, "1\"": 2.40, "1.5\"": 3.80, "2\"": 5.50, "3\"": 9.20,  "4\"": 14.50 },
-    cap:      { "1/2\"": 0.60, "3/4\"": 0.80, "1\"": 1.20, "1.5\"": 1.90, "2\"": 2.80, "3\"": 4.80,  "4\"": 7.50  },
+    elbow_90: { "1/2\"": 1.05, "3/4\"": 1.40, "1\"": 2.10, "1.5\"": 3.40, "2\"": 4.85, "3\"": 8.20,  "4\"": 12.50 },
+    elbow_45: { "1/2\"": 0.95, "3/4\"": 1.25, "1\"": 1.90, "1.5\"": 3.10, "2\"": 4.30, "3\"": 7.50,  "4\"": 11.50 },
+    tee:      { "1/2\"": 1.35, "3/4\"": 1.75, "1\"": 2.70, "1.5\"": 4.10, "2\"": 5.95, "3\"": 10.20, "4\"": 15.50 },
+    coupling: { "1/2\"": 0.72, "3/4\"": 0.92, "1\"": 1.45, "1.5\"": 2.30, "2\"": 3.45, "3\"": 5.80,  "4\"": 9.10  },
+    reducer:  { "1/2\"": 1.15, "3/4\"": 1.50, "1\"": 2.30, "1.5\"": 3.65, "2\"": 5.30, "3\"": 8.90,  "4\"": 14.00 },
+    cap:      { "1/2\"": 0.58, "3/4\"": 0.78, "1\"": 1.15, "1.5\"": 1.85, "2\"": 2.70, "3\"": 4.60,  "4\"": 7.20  },
   },
+
+  // ── ABS DWV fittings (black plastic, drain-waste-vent)
+  // Slightly pricier than PVC — mostly used for drain lines in Ontario
   ABS: {
-    elbow_90: { "1/2\"": 1.30, "3/4\"": 1.70, "1\"": 2.60, "1.5\"": 4.00, "2\"": 5.80, "3\"": 9.80,  "4\"": 15.00 },
-    elbow_45: { "1/2\"": 1.15, "3/4\"": 1.50, "1\"": 2.30, "1.5\"": 3.60, "2\"": 5.20, "3\"": 8.80,  "4\"": 13.50 },
-    tee:      { "1/2\"": 1.60, "3/4\"": 2.10, "1\"": 3.20, "1.5\"": 5.00, "2\"": 7.20, "3\"": 12.00, "4\"": 18.50 },
-    coupling: { "1/2\"": 0.90, "3/4\"": 1.15, "1\"": 1.75, "1.5\"": 2.80, "2\"": 4.10, "3\"": 7.00,  "4\"": 11.00 },
-    reducer:  { "1/2\"": 1.40, "3/4\"": 1.80, "1\"": 2.75, "1.5\"": 4.30, "2\"": 6.20, "3\"": 10.50, "4\"": 16.50 },
-    cap:      { "1/2\"": 0.70, "3/4\"": 0.95, "1\"": 1.40, "1.5\"": 2.20, "2\"": 3.20, "3\"": 5.50,  "4\"": 8.50  },
+    elbow_90: { "1/2\"": 1.25, "3/4\"": 1.65, "1\"": 2.55, "1.5\"": 3.90, "2\"": 5.65, "3\"": 9.50,  "4\"": 14.50 },
+    elbow_45: { "1/2\"": 1.10, "3/4\"": 1.48, "1\"": 2.25, "1.5\"": 3.50, "2\"": 5.05, "3\"": 8.60,  "4\"": 13.10 },
+    tee:      { "1/2\"": 1.55, "3/4\"": 2.05, "1\"": 3.10, "1.5\"": 4.85, "2\"": 7.00, "3\"": 11.70, "4\"": 18.00 },
+    coupling: { "1/2\"": 0.88, "3/4\"": 1.12, "1\"": 1.70, "1.5\"": 2.70, "2\"": 3.95, "3\"": 6.80,  "4\"": 10.60 },
+    reducer:  { "1/2\"": 1.35, "3/4\"": 1.75, "1\"": 2.65, "1.5\"": 4.15, "2\"": 6.00, "3\"": 10.20, "4\"": 16.00 },
+    cap:      { "1/2\"": 0.68, "3/4\"": 0.92, "1\"": 1.35, "1.5\"": 2.15, "2\"": 3.10, "3\"": 5.30,  "4\"": 8.20  },
   },
+
+  // ── Wrought Copper solder fittings (C x C pressure)
+  // Most expensive — copper commodity price drives cost significantly
+  // Prices reflect Wolseley / Noble Trade / Ferguson supply house rates
   Copper: {
-    elbow_90: { "1/2\"": 4.50, "3/4\"": 6.80, "1\"": 10.50, "1.5\"": 16.00, "2\"": 24.00, "3\"": 42.00, "4\"": 68.00 },
-    elbow_45: { "1/2\"": 4.00, "3/4\"": 6.20, "1\"": 9.50,  "1.5\"": 14.50, "2\"": 21.50, "3\"": 38.00, "4\"": 62.00 },
-    tee:      { "1/2\"": 5.50, "3/4\"": 8.20, "1\"": 12.50, "1.5\"": 19.00, "2\"": 28.00, "3\"": 50.00, "4\"": 80.00 },
-    coupling: { "1/2\"": 2.80, "3/4\"": 4.20, "1\"": 6.50,  "1.5\"": 10.00, "2\"": 15.00, "3\"": 26.00, "4\"": 42.00 },
-    reducer:  { "1/2\"": 3.50, "3/4\"": 5.20, "1\"": 8.00,  "1.5\"": 12.50, "2\"": 18.50, "3\"": 32.00, "4\"": 52.00 },
-    cap:      { "1/2\"": 2.20, "3/4\"": 3.30, "1\"": 5.00,  "1.5\"": 7.80,  "2\"": 11.50, "3\"": 20.00, "4\"": 32.00 },
+    elbow_90: { "1/2\"": 4.80, "3/4\"": 7.20, "1\"": 11.50, "1.5\"": 17.50, "2\"": 26.00, "3\"": 46.00, "4\"": 74.00 },
+    elbow_45: { "1/2\"": 4.25, "3/4\"": 6.50, "1\"": 10.20, "1.5\"": 15.80, "2\"": 23.50, "3\"": 41.00, "4\"": 67.00 },
+    tee:      { "1/2\"": 5.80, "3/4\"": 8.80, "1\"": 13.50, "1.5\"": 20.50, "2\"": 30.50, "3\"": 54.00, "4\"": 87.00 },
+    coupling: { "1/2\"": 3.00, "3/4\"": 4.50, "1\"": 7.00,  "1.5\"": 10.80, "2\"": 16.20, "3\"": 28.50, "4\"": 46.00 },
+    reducer:  { "1/2\"": 3.75, "3/4\"": 5.60, "1\"": 8.60,  "1.5\"": 13.50, "2\"": 20.00, "3\"": 35.00, "4\"": 57.00 },
+    cap:      { "1/2\"": 2.35, "3/4\"": 3.55, "1\"": 5.40,  "1.5\"": 8.40,  "2\"": 12.50, "3\"": 22.00, "4\"": 35.00 },
   },
+
+  // ── PEX fittings (brass crimp/clamp or expansion fittings)
+  // Brass fittings — mid-range price. Uponor/Watts/SharkBite pricing
+  // More expensive than PVC/ABS, much cheaper than copper solder fittings
   PEX: {
-    elbow_90: { "1/2\"": 2.20, "3/4\"": 3.20, "1\"": 5.00,  "1.5\"": 7.80,  "2\"": 11.50, "3\"": 20.00, "4\"": 32.00 },
-    elbow_45: { "1/2\"": 2.00, "3/4\"": 2.90, "1\"": 4.50,  "1.5\"": 7.00,  "2\"": 10.50, "3\"": 18.00, "4\"": 29.00 },
-    tee:      { "1/2\"": 2.80, "3/4\"": 4.00, "1\"": 6.20,  "1.5\"": 9.50,  "2\"": 14.00, "3\"": 24.00, "4\"": 38.00 },
-    coupling: { "1/2\"": 1.40, "3/4\"": 2.00, "1\"": 3.20,  "1.5\"": 5.00,  "2\"": 7.50,  "3\"": 13.00, "4\"": 21.00 },
-    reducer:  { "1/2\"": 1.80, "3/4\"": 2.60, "1\"": 4.00,  "1.5\"": 6.20,  "2\"": 9.20,  "3\"": 16.00, "4\"": 26.00 },
-    cap:      { "1/2\"": 1.10, "3/4\"": 1.60, "1\"": 2.50,  "1.5\"": 3.90,  "2\"": 5.80,  "3\"": 10.00, "4\"": 16.00 },
+    elbow_90: { "1/2\"": 2.45, "3/4\"": 3.60, "1\"": 5.50,  "1.5\"": 8.60,  "2\"": 12.80, "3\"": 22.50, "4\"": 36.00 },
+    elbow_45: { "1/2\"": 2.20, "3/4\"": 3.20, "1\"": 4.90,  "1.5\"": 7.70,  "2\"": 11.50, "3\"": 20.00, "4\"": 32.00 },
+    tee:      { "1/2\"": 3.10, "3/4\"": 4.50, "1\"": 6.80,  "1.5\"": 10.50, "2\"": 15.50, "3\"": 27.00, "4\"": 43.00 },
+    coupling: { "1/2\"": 1.55, "3/4\"": 2.25, "1\"": 3.50,  "1.5\"": 5.50,  "2\"": 8.20,  "3\"": 14.50, "4\"": 23.00 },
+    reducer:  { "1/2\"": 2.00, "3/4\"": 2.90, "1\"": 4.40,  "1.5\"": 6.80,  "2\"": 10.20, "3\"": 17.80, "4\"": 28.50 },
+    cap:      { "1/2\"": 1.20, "3/4\"": 1.75, "1\"": 2.70,  "1.5\"": 4.25,  "2\"": 6.30,  "3\"": 11.00, "4\"": 17.50 },
   },
 };
 
 // ─────────────────────────────────────────────────────────────
 // DEFAULT STATE BUILDERS
 // ─────────────────────────────────────────────────────────────
+const newPipeRow = () => ({
+  type: "PVC", size: "1/2\"",
+  pricePerFt: PIPE_PRICING.PVC["1/2\""],
+  length: 0,
+});
+
 const buildDefaultPipes = () => [
   { type: "PVC",    size: "1/2\"", pricePerFt: PIPE_PRICING.PVC["1/2\""],    length: 0 },
   { type: "ABS",    size: "1/2\"", pricePerFt: PIPE_PRICING.ABS["1/2\""],    length: 0 },
@@ -161,22 +187,22 @@ export default function App() {
     reader.readAsDataURL(e.target.files[0]);
   };
 
-  // ── Pipe updater — auto-updates price when type or size changes
+  // ── Pipe row management
+  const addPipeRow    = () => setPipes([...pipes, newPipeRow()]);
+  const removePipeRow = (i) => { if (pipes.length > 1) setPipes(pipes.filter((_, idx) => idx !== i)); };
+
   const updatePipe = (i, field, value) => {
     const u = [...pipes];
     u[i][field] = value;
-    // If type or size changed, auto-fill price (user can still override)
     if (field === "type" || field === "size") {
-      const t = field === "type" ? value : u[i].type;
+      const t  = field === "type" ? value : u[i].type;
       const sz = field === "size" ? value : u[i].size;
-      if (PIPE_PRICING[t] && PIPE_PRICING[t][sz] !== undefined) {
-        u[i].pricePerFt = PIPE_PRICING[t][sz];
-      }
+      if (PIPE_PRICING[t]?.[sz] !== undefined) u[i].pricePerFt = PIPE_PRICING[t][sz];
     }
     setPipes(u);
   };
 
-  // ── Fitting updater — auto-updates price when material or size changes
+  // ── Fitting updater — price auto-refreshes on material or size change
   const updateFitting = (i, field, value) => {
     const u = [...fittings];
     u[i][field] = value;
@@ -210,7 +236,7 @@ export default function App() {
   // PDF GENERATION
   // ─────────────────────────────────────────────────────────────
   const generatePDF = () => {
-    const doc = new jsPDF();
+    const doc  = new jsPDF();
     const pageW = 210;
     const L = 15, R = pageW - 15;
 
@@ -221,7 +247,7 @@ export default function App() {
     doc.text(companyName, L, 22);
     doc.setFontSize(10);
     doc.setTextColor(99, 117, 146);
-    doc.text("Client: " + (clientName || "—"), L, 32);
+    doc.text("Client: " + (clientName || "\u2014"), L, 32);
     doc.text("Job Type: " + jobType, L, 39);
     doc.text("Date: " + new Date().toLocaleDateString("en-CA"), L, 46);
     doc.setDrawColor(212, 225, 245);
@@ -245,12 +271,8 @@ export default function App() {
       doc.setFontSize(8);
       doc.setTextColor(99, 117, 146);
       cols.forEach(([txt, x, align]) => {
-        if (align === "right") {
-          const w = doc.getTextWidth(txt);
-          doc.text(txt, x - w, y);
-        } else {
-          doc.text(txt, x, y);
-        }
+        if (align === "right") { const w = doc.getTextWidth(txt); doc.text(txt, x - w, y); }
+        else doc.text(txt, x, y);
       });
       y += 4;
       doc.setDrawColor(212, 225, 245);
@@ -260,19 +282,12 @@ export default function App() {
     };
 
     const dataRow = (cols, shade) => {
-      if (shade) {
-        doc.setFillColor(248, 251, 255);
-        doc.rect(L, y - 5, R - L, 8, "F");
-      }
+      if (shade) { doc.setFillColor(248, 251, 255); doc.rect(L, y - 5, R - L, 8, "F"); }
       doc.setFontSize(9);
       doc.setTextColor(42, 58, 82);
       cols.forEach(([txt, x, align]) => {
-        if (align === "right") {
-          const w = doc.getTextWidth(String(txt));
-          doc.text(String(txt), x - w, y);
-        } else {
-          doc.text(String(txt), x, y);
-        }
+        if (align === "right") { const w = doc.getTextWidth(String(txt)); doc.text(String(txt), x - w, y); }
+        else doc.text(String(txt), x, y);
       });
       y += 9;
     };
@@ -295,12 +310,11 @@ export default function App() {
       sectionHeader("Rough-In Piping");
       colHeader([
         ["Pipe Type", L + 2, "left"],
-        ["Size",      65,    "left"],
-        ["Length",    100,   "left"],
-        ["$/ft",      135,   "left"],
+        ["Size",      62,    "left"],
+        ["Length",    95,    "left"],
+        ["$/ft",      128,   "left"],
         ["Cost",      R,     "right"],
       ]);
-
       const activePipes = pipes.filter(p => Number(p.length) > 0);
       if (activePipes.length === 0) {
         doc.setFontSize(9); doc.setTextColor(99, 117, 146);
@@ -309,11 +323,11 @@ export default function App() {
         activePipes.forEach((p, idx) => {
           const cost = (Number(p.length) * Number(p.pricePerFt)).toFixed(2);
           dataRow([
-            [p.type,                              L + 2, "left"],
-            [p.size,                              65,    "left"],
-            [p.length + " ft",                   100,   "left"],
-            ["$" + Number(p.pricePerFt).toFixed(2), 135, "left"],
-            ["$" + cost,                          R,     "right"],
+            [p.type,                                  L + 2, "left"],
+            [p.size,                                  62,    "left"],
+            [p.length + " ft",                        95,    "left"],
+            ["$" + Number(p.pricePerFt).toFixed(2),   128,   "left"],
+            ["$" + cost,                              R,     "right"],
           ], idx % 2 === 0);
         });
       }
@@ -322,14 +336,13 @@ export default function App() {
 
       sectionHeader("Rough-In Fittings");
       colHeader([
-        ["Fitting",   L + 2, "left"],
-        ["Material",  58,    "left"],
-        ["Size",      90,    "left"],
-        ["Qty",       118,   "left"],
-        ["Unit",      145,   "left"],
-        ["Total",     R,     "right"],
+        ["Fitting",    L + 2, "left"],
+        ["Material",   55,    "left"],
+        ["Size",       85,    "left"],
+        ["Qty",        112,   "left"],
+        ["Unit",       135,   "left"],
+        ["Total",      R,     "right"],
       ]);
-
       const activeFittings = fittings.filter(f => Number(f.qty) > 0);
       if (activeFittings.length === 0) {
         doc.setFontSize(9); doc.setTextColor(99, 117, 146);
@@ -338,12 +351,12 @@ export default function App() {
         activeFittings.forEach((f, idx) => {
           const lineTotal = (Number(f.qty) * Number(f.unitPrice)).toFixed(2);
           dataRow([
-            [f.label,                              L + 2, "left"],
-            [f.material,                           58,    "left"],
-            [f.size,                               90,    "left"],
-            [String(f.qty),                        118,   "left"],
-            ["$" + Number(f.unitPrice).toFixed(2), 145,   "left"],
-            ["$" + lineTotal,                      R,     "right"],
+            [f.label,                                L + 2, "left"],
+            [f.material,                             55,    "left"],
+            [f.size,                                 85,    "left"],
+            [String(f.qty),                          112,   "left"],
+            ["$" + Number(f.unitPrice).toFixed(2),   135,   "left"],
+            ["$" + lineTotal,                        R,     "right"],
           ], idx % 2 === 0);
         });
       }
@@ -352,28 +365,28 @@ export default function App() {
 
       if (Number(roughLabour) > 0) {
         sectionHeader("Labour");
-        dataRow([["Rough-In Labour", L + 2, "left"], ["$" + Number(roughLabour).toFixed(2), R, "right"]], false);
+        dataRow([
+          ["Rough-In Labour",                         L + 2, "left"],
+          ["$" + Number(roughLabour).toFixed(2),      R,     "right"],
+        ], false);
         y += 2;
       }
 
-    // ── FIXTURE INSTALL PDF
     } else if (jobType === "Fixture Install") {
       sectionHeader("Fixture Install Labour");
       colHeader([
-        ["Fixture",    L + 2, "left"],
-        ["Qty",        120,   "left"],
-        ["Total",      R,     "right"],
+        ["Fixture",  L + 2, "left"],
+        ["Qty",      120,   "left"],
+        ["Total",    R,     "right"],
       ]);
       fixtures.filter(f => f.name && f.labour > 0).forEach((f, idx) => {
         dataRow([
-          [f.name + " install",                          L + 2, "left"],
-          ["x" + f.qty,                                  120,   "left"],
-          ["$" + (Number(f.labour) * Number(f.qty)).toFixed(2), R, "right"],
+          [f.name + " install",                              L + 2, "left"],
+          ["x" + f.qty,                                      120,   "left"],
+          ["$" + (Number(f.labour) * Number(f.qty)).toFixed(2), R,  "right"],
         ], idx % 2 === 0);
       });
       y += 4;
-
-    // ── STANDARD JOB PDF
     } else {
       sectionHeader("Labour & Materials");
       dataRow([["Labour",    L + 2, "left"], ["$" + laborCost.toFixed(2),  R, "right"]], false);
@@ -381,7 +394,7 @@ export default function App() {
       y += 4;
     }
 
-    // ── TOTALS BLOCK
+    // ── Totals block
     doc.setDrawColor(212, 225, 245);
     doc.setLineWidth(0.5);
     doc.line(L, y, R, y); y += 8;
@@ -389,40 +402,30 @@ export default function App() {
     doc.setFontSize(9); doc.setTextColor(99, 117, 146);
     doc.text("Subtotal", 130, y);
     const sw = doc.getTextWidth("$" + subtotal.toFixed(2));
-    doc.setTextColor(42, 58, 82);
-    doc.text("$" + subtotal.toFixed(2), R - sw, y); y += 8;
+    doc.setTextColor(42, 58, 82); doc.text("$" + subtotal.toFixed(2), R - sw, y); y += 8;
 
-    doc.setTextColor(99, 117, 146);
-    doc.text("HST (13%)", 130, y);
+    doc.setTextColor(99, 117, 146); doc.text("HST (13%)", 130, y);
     const hw = doc.getTextWidth("$" + hst.toFixed(2));
-    doc.setTextColor(42, 58, 82);
-    doc.text("$" + hst.toFixed(2), R - hw, y); y += 5;
+    doc.setTextColor(42, 58, 82); doc.text("$" + hst.toFixed(2), R - hw, y); y += 5;
 
-    doc.setDrawColor(13, 31, 60);
-    doc.setLineWidth(0.7);
+    doc.setDrawColor(13, 31, 60); doc.setLineWidth(0.7);
     doc.line(130, y, R, y); y += 8;
 
-    doc.setFontSize(13);
-    doc.setTextColor(13, 31, 60);
-    doc.setFont(undefined, "bold");
+    doc.setFontSize(13); doc.setTextColor(13, 31, 60); doc.setFont(undefined, "bold");
     doc.text("TOTAL", 130, y);
     const tw = doc.getTextWidth("$" + total.toFixed(2));
     doc.text("$" + total.toFixed(2), R - tw, y);
     doc.setFont(undefined, "normal");
 
-    // ── Materials note (non-rough-in only)
     if (jobType !== "Rough In" && materialsList) {
       y += 16;
       doc.setFontSize(9); doc.setTextColor(99, 117, 146);
       doc.text("Materials Used:", L, y); y += 6;
-      doc.setTextColor(42, 58, 82);
-      doc.text(materialsList, L, y);
+      doc.setTextColor(42, 58, 82); doc.text(materialsList, L, y);
     }
 
-    // ── Footer
-    doc.setFontSize(8);
-    doc.setTextColor(180, 195, 215);
-    doc.text("Generated by PlumbQuote 3  •  Prices are estimates only. Verify before submitting.", L, 285);
+    doc.setFontSize(8); doc.setTextColor(180, 195, 215);
+    doc.text("Generated by PlumbQuote 3  \u2022  Prices are estimates only. Verify before submitting.", L, 285);
 
     doc.save((clientName || "quote") + ".pdf");
     setPdfSuccess(true);
@@ -523,7 +526,7 @@ export default function App() {
         {/* ── ROUGH-IN ESTIMATOR ── */}
         {jobType === "Rough In" && (
           <>
-            {/* PIPING */}
+            {/* ── PIPING */}
             <Section title="Rough-In — Piping" icon="🔩">
               <div style={s.roughDisclaimer}>
                 ⚠ Prices auto-fill from Ontario supply baselines (Home Depot CA, Wolseley, Noble Trade). All values are editable — adjust to your actual costs before submitting.
@@ -531,31 +534,34 @@ export default function App() {
 
               {/* Column headers */}
               <div style={s.roughHeader}>
-                <span style={{ flex: "0 0 85px" }}>Type</span>
-                <span style={{ flex: "0 0 90px" }}>Size</span>
+                <span style={{ flex: "0 0 90px" }}>Type</span>
+                <span style={{ flex: "0 0 88px" }}>Size</span>
                 <span style={{ flex: 1 }}>Length (ft)</span>
-                <span style={{ flex: 1 }}>$/ft (editable)</span>
-                <span style={{ flex: "0 0 80px", textAlign: "right" }}>Cost</span>
+                <span style={{ flex: 1 }}>$/ft</span>
+                <span style={{ flex: "0 0 78px", textAlign: "right" }}>Cost</span>
+                <span style={{ flex: "0 0 32px" }}></span>
               </div>
 
               {pipes.map((p, i) => (
                 <div key={i} style={s.roughRow}>
                   {/* Type dropdown */}
                   <select
-                    style={{ ...s.input, flex: "0 0 85px" }}
+                    style={{ ...s.input, flex: "0 0 90px" }}
                     value={p.type}
                     onChange={(e) => updatePipe(i, "type", e.target.value)}
                   >
                     {Object.keys(PIPE_PRICING).map(t => <option key={t}>{t}</option>)}
                   </select>
+
                   {/* Size dropdown */}
                   <select
-                    style={{ ...s.input, flex: "0 0 90px" }}
+                    style={{ ...s.input, flex: "0 0 88px" }}
                     value={p.size}
                     onChange={(e) => updatePipe(i, "size", e.target.value)}
                   >
                     {PIPE_SIZES.map(sz => <option key={sz}>{sz}</option>)}
                   </select>
+
                   {/* Length */}
                   <input
                     style={{ ...s.input, flex: 1 }}
@@ -563,18 +569,36 @@ export default function App() {
                     value={p.length || ""}
                     onChange={(e) => updatePipe(i, "length", e.target.value)}
                   />
-                  {/* Price per ft — editable, auto-updated by type/size */}
+
+                  {/* Price per ft — auto-filled, user-editable */}
                   <input
                     style={{ ...s.input, flex: 1 }}
                     type="number" min="0" step="0.01"
                     value={p.pricePerFt}
                     onChange={(e) => updatePipe(i, "pricePerFt", e.target.value)}
                   />
-                  <div style={{ ...s.fixtureLineTotal, flex: "0 0 80px" }}>
+
+                  {/* Line total */}
+                  <div style={{ ...s.fixtureLineTotal, flex: "0 0 78px" }}>
                     ${(Number(p.length) * Number(p.pricePerFt)).toFixed(2)}
                   </div>
+
+                  {/* Remove button */}
+                  <button
+                    style={{ ...s.removeBtn, flex: "0 0 32px", opacity: pipes.length === 1 ? 0.3 : 1 }}
+                    onClick={() => removePipeRow(i)}
+                    disabled={pipes.length === 1}
+                    title="Remove row"
+                  >
+                    ✕
+                  </button>
                 </div>
               ))}
+
+              {/* Add pipe row button */}
+              <button style={s.addBtn} onClick={addPipeRow}>
+                + Add Pipe
+              </button>
 
               <div style={s.subtotalRow}>
                 <span>Piping Subtotal</span>
@@ -582,52 +606,62 @@ export default function App() {
               </div>
             </Section>
 
-            {/* FITTINGS */}
+            {/* ── FITTINGS */}
             <Section title="Rough-In — Fittings" icon="🔧">
+              <div style={s.roughDisclaimer}>
+                ⚠ Unit prices reflect material type — Copper fittings are significantly higher than PVC/ABS. Prices auto-update when material or size changes.
+              </div>
+
               {/* Column headers */}
               <div style={s.roughHeader}>
                 <span style={{ flex: "0 0 95px" }}>Fitting</span>
-                <span style={{ flex: "0 0 80px" }}>Material</span>
-                <span style={{ flex: "0 0 80px" }}>Size</span>
-                <span style={{ flex: "0 0 60px" }}>Qty</span>
+                <span style={{ flex: "0 0 82px" }}>Material</span>
+                <span style={{ flex: "0 0 78px" }}>Size</span>
+                <span style={{ flex: "0 0 58px" }}>Qty</span>
                 <span style={{ flex: 1 }}>Unit Price ($)</span>
                 <span style={{ flex: "0 0 75px", textAlign: "right" }}>Total</span>
               </div>
 
               {fittings.map((f, i) => (
                 <div key={i} style={s.roughRow}>
-                  {/* Fitting label — fixed */}
+                  {/* Fitting label */}
                   <div style={{ ...s.roughTypeTag, flex: "0 0 95px", fontSize: "0.82rem" }}>{f.label}</div>
+
                   {/* Material dropdown */}
                   <select
-                    style={{ ...s.input, flex: "0 0 80px" }}
+                    style={{ ...s.input, flex: "0 0 82px" }}
                     value={f.material}
                     onChange={(e) => updateFitting(i, "material", e.target.value)}
                   >
                     {Object.keys(FITTING_PRICING).map(m => <option key={m}>{m}</option>)}
                   </select>
+
                   {/* Size dropdown */}
                   <select
-                    style={{ ...s.input, flex: "0 0 80px" }}
+                    style={{ ...s.input, flex: "0 0 78px" }}
                     value={f.size}
                     onChange={(e) => updateFitting(i, "size", e.target.value)}
                   >
                     {FITTING_SIZES.map(sz => <option key={sz}>{sz}</option>)}
                   </select>
+
                   {/* Qty */}
                   <input
-                    style={{ ...s.input, flex: "0 0 60px" }}
+                    style={{ ...s.input, flex: "0 0 58px" }}
                     type="number" min="0" placeholder="0"
                     value={f.qty || ""}
                     onChange={(e) => updateFitting(i, "qty", e.target.value)}
                   />
-                  {/* Unit price — editable, auto-updated by material/size */}
+
+                  {/* Unit price — auto-filled, user-editable */}
                   <input
                     style={{ ...s.input, flex: 1 }}
                     type="number" min="0" step="0.01"
                     value={f.unitPrice}
                     onChange={(e) => updateFitting(i, "unitPrice", e.target.value)}
                   />
+
+                  {/* Line total */}
                   <div style={{ ...s.fixtureLineTotal, flex: "0 0 75px" }}>
                     ${(Number(f.qty) * Number(f.unitPrice)).toFixed(2)}
                   </div>
@@ -640,7 +674,7 @@ export default function App() {
               </div>
             </Section>
 
-            {/* ROUGH-IN LABOUR */}
+            {/* ── ROUGH-IN LABOUR */}
             <Section title="Rough-In — Labour" icon="👷">
               <Row>
                 <Field label="Labour Cost ($)">
@@ -659,7 +693,7 @@ export default function App() {
           </>
         )}
 
-        {/* LABOUR (hidden for Rough In) */}
+        {/* LABOUR — hidden for Rough In */}
         {jobType !== "Rough In" && (
           <Section title="Labour" icon="🔧">
             {jobType === "Fixture Install" ? (
@@ -695,7 +729,7 @@ export default function App() {
           </Section>
         )}
 
-        {/* MATERIALS (hidden for Rough In) */}
+        {/* MATERIALS — hidden for Rough In */}
         {jobType !== "Rough In" && (
           <Section title="Materials" icon="🪛">
             <Row>
@@ -786,7 +820,7 @@ const s = {
   headerRight: { display: "flex", alignItems: "center", gap: 12 },
   avatar: { width: 34, height: 34, borderRadius: "50%", background: "#0d1f3c", color: "#f5a623", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Serif Display', serif", fontSize: "1rem" },
   logoutBtn: { background: "transparent", border: "1px solid #d4e1f5", borderRadius: 8, padding: "6px 14px", fontSize: "0.82rem", color: "#637592", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" },
-  main: { maxWidth: 820, margin: "0 auto", padding: "28px 20px 60px", display: "flex", flexDirection: "column", gap: 20 },
+  main: { maxWidth: 860, margin: "0 auto", padding: "28px 20px 60px", display: "flex", flexDirection: "column", gap: 20 },
   totalBanner: { background: "#0d1f3c", borderRadius: 16, padding: "24px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16, boxShadow: "0 8px 32px rgba(13,31,60,0.18)" },
   totalLabel: { fontSize: "0.78rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: 4 },
   totalAmount: { fontFamily: "'DM Serif Display', serif", fontSize: "2.6rem", color: "#ffffff", lineHeight: 1 },
@@ -800,20 +834,20 @@ const s = {
   row: { display: "flex", gap: 16, flexWrap: "wrap" },
   field: { display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 140 },
   label: { fontSize: "0.78rem", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "#637592" },
-  input: { padding: "10px 14px", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "0.92rem", color: "#2a3a52", background: "#ffffff", outline: "none", fontFamily: "'DM Sans', sans-serif", width: "100%", boxSizing: "border-box" },
+  input: { padding: "10px 12px", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "0.9rem", color: "#2a3a52", background: "#ffffff", outline: "none", fontFamily: "'DM Sans', sans-serif", width: "100%", boxSizing: "border-box" },
   fileLabel: { display: "block", padding: "10px 14px", border: "1.5px dashed #d4e1f5", borderRadius: 9, fontSize: "0.9rem", color: "#2e7dd1", cursor: "pointer", textAlign: "center", fontWeight: 500, background: "#f0f5fc" },
   textarea: { padding: "10px 14px", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "0.9rem", color: "#2a3a52", background: "#ffffff", outline: "none", fontFamily: "'DM Sans', sans-serif", width: "100%", minHeight: 80, resize: "vertical", boxSizing: "border-box" },
   calcDisplay: { padding: "10px 14px", background: "#f0f5fc", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "1rem", fontWeight: 600, color: "#0d1f3c" },
   fixtureRow: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" },
-  fixtureLineTotal: { minWidth: 75, padding: "10px 0", fontWeight: 600, color: "#2e7dd1", fontSize: "0.92rem", textAlign: "right" },
-  removeBtn: { background: "transparent", border: "1px solid #d4e1f5", borderRadius: 6, color: "#637592", cursor: "pointer", padding: "6px 10px", fontSize: "0.8rem", lineHeight: 1 },
+  fixtureLineTotal: { minWidth: 72, padding: "10px 0", fontWeight: 600, color: "#2e7dd1", fontSize: "0.9rem", textAlign: "right" },
+  removeBtn: { background: "transparent", border: "1px solid #d4e1f5", borderRadius: 6, color: "#637592", cursor: "pointer", padding: "6px 9px", fontSize: "0.78rem", lineHeight: 1 },
   addBtn: { background: "#f0f5fc", border: "1.5px dashed #d4e1f5", borderRadius: 9, color: "#2e7dd1", cursor: "pointer", padding: "10px 16px", fontSize: "0.88rem", fontWeight: 600, fontFamily: "'DM Sans', sans-serif", alignSelf: "flex-start" },
   subtotalRow: { display: "flex", justifyContent: "space-between", padding: "10px 14px", background: "#f0f5fc", borderRadius: 9, fontSize: "0.9rem", color: "#637592", marginTop: 4 },
   subtotalVal: { fontWeight: 600, color: "#0d1f3c" },
   roughDisclaimer: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 9, padding: "10px 14px", fontSize: "0.8rem", color: "#92400e", lineHeight: 1.5 },
-  roughHeader: { display: "flex", gap: 10, alignItems: "center", padding: "0 4px", fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#637592" },
+  roughHeader: { display: "flex", gap: 8, alignItems: "center", padding: "0 2px", fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#637592" },
   roughRow: { display: "flex", gap: 8, alignItems: "center" },
-  roughTypeTag: { padding: "10px 12px", background: "#f0f5fc", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "0.88rem", fontWeight: 600, color: "#0d1f3c", whiteSpace: "nowrap" },
+  roughTypeTag: { padding: "10px 10px", background: "#f0f5fc", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "0.85rem", fontWeight: 600, color: "#0d1f3c", whiteSpace: "nowrap" },
   summaryCard: { background: "#ffffff", border: "1px solid #d4e1f5", borderRadius: 16, padding: "24px", boxShadow: "0 2px 12px rgba(13,31,60,0.04)" },
   summaryTitle: { fontFamily: "'DM Serif Display', serif", fontSize: "1.3rem", color: "#0d1f3c", marginBottom: 16 },
   summaryLine: { display: "flex", justifyContent: "space-between", fontSize: "0.95rem", color: "#637592", padding: "8px 0", borderBottom: "1px solid #d4e1f5" },
