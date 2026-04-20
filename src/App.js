@@ -3,7 +3,7 @@ import { auth, googleProvider, db } from "./firebase";
 import { signInWithPopup, onAuthStateChanged, signOut } from "firebase/auth";
 import {
   collection, doc, addDoc, updateDoc, deleteDoc,
-  getDocs, query, where, orderBy, onSnapshot, serverTimestamp, Timestamp
+  getDocs, query, where, orderBy, onSnapshot, serverTimestamp, getDoc, setDoc
 } from "firebase/firestore";
 import { jsPDF } from "jspdf";
 
@@ -22,9 +22,10 @@ const C = {
   border: "#d4e1f5",
   danger: "#e53e3e",
   green:  "#22c55e",
+  amber:  "#f59e0b",
 };
 
-const JOB_TYPES = ["Drain Cleaning", "Fixture Install", "Pipe Repair", "Rough In"];
+const JOB_TYPES = ["Drain Cleaning", "Fixture Install", "Pipe Repair", "Rough In", "Water Heater", "Service Call"];
 
 const PIPE_SIZES = ["1/4\"", "1/2\"", "3/4\"", "1\"", "1.5\"", "2\"", "3\"", "4\"", "6\""];
 
@@ -97,17 +98,104 @@ const FITTING_PRICING = {
   },
 };
 
+// NEW FEATURE — Ontario pre-built job templates
+const ONTARIO_TEMPLATES = [
+  {
+    id: "tpl_water_heater",
+    name: "Water Heater Replacement",
+    jobType: "Water Heater",
+    hours: 3,
+    hourlyRate: 120,
+    materialCost: 680,
+    markup: 1.35,
+    materialsList: "40-gal power vent water heater, dielectric unions, T&P valve, supply lines, misc fittings",
+    siteNotes: "",
+    fixtures: [{ name: "", labour: 0, qty: 1 }],
+    pipes: [],
+    fittings: [],
+    roughLabour: 0,
+    subContractorCost: 0,
+  },
+  {
+    id: "tpl_toilet_install",
+    name: "Toilet Install",
+    jobType: "Fixture Install",
+    hours: 1.5,
+    hourlyRate: 120,
+    materialCost: 45,
+    markup: 1.4,
+    materialsList: "Wax ring, closet bolts, supply line, toilet seat bolts",
+    siteNotes: "",
+    fixtures: [{ name: "Toilet", labour: 180, qty: 1 }],
+    pipes: [],
+    fittings: [],
+    roughLabour: 0,
+    subContractorCost: 0,
+  },
+  {
+    id: "tpl_drain_cleaning",
+    name: "Drain Cleaning (Snake)",
+    jobType: "Drain Cleaning",
+    hours: 1.5,
+    hourlyRate: 120,
+    materialCost: 15,
+    markup: 1.4,
+    materialsList: "Drain cleaner, rags",
+    siteNotes: "",
+    fixtures: [{ name: "", labour: 0, qty: 1 }],
+    pipes: [],
+    fittings: [],
+    roughLabour: 0,
+    subContractorCost: 0,
+  },
+  {
+    id: "tpl_shutoff_valve",
+    name: "Main Shutoff Valve Replacement",
+    jobType: "Pipe Repair",
+    hours: 2,
+    hourlyRate: 120,
+    materialCost: 85,
+    markup: 1.4,
+    materialsList: "1\" ball valve, 2x copper couplings, solder, flux, emery cloth",
+    siteNotes: "Confirm location of curb stop before scheduling. May require city shutoff.",
+    fixtures: [{ name: "", labour: 0, qty: 1 }],
+    pipes: [],
+    fittings: [],
+    roughLabour: 0,
+    subContractorCost: 0,
+  },
+  {
+    id: "tpl_service_call",
+    name: "Service Call (Diagnostic)",
+    jobType: "Service Call",
+    hours: 1,
+    hourlyRate: 120,
+    materialCost: 0,
+    markup: 1.4,
+    materialsList: "",
+    siteNotes: "",
+    fixtures: [{ name: "", labour: 0, qty: 1 }],
+    pipes: [],
+    fittings: [],
+    roughLabour: 0,
+    subContractorCost: 0,
+  },
+];
+
+const LOW_MARGIN_THRESHOLD = 20; // warn if profit margin below this %
+
 const newPipeRow = () => ({
   type: "PVC", size: "1/2\"",
   pricePerFt: PIPE_PRICING.PVC["1/2\""],
+  costPerFt: PIPE_PRICING.PVC["1/2\""], // NEW — track cost separately
   length: 0,
 });
 
 const buildDefaultPipes = () => [
-  { type: "PVC",    size: "1/2\"", pricePerFt: PIPE_PRICING.PVC["1/2\""],    length: 0 },
-  { type: "ABS",    size: "1/2\"", pricePerFt: PIPE_PRICING.ABS["1/2\""],    length: 0 },
-  { type: "Copper", size: "1/2\"", pricePerFt: PIPE_PRICING.Copper["1/2\""], length: 0 },
-  { type: "PEX",    size: "1/2\"", pricePerFt: PIPE_PRICING.PEX["1/2\""],    length: 0 },
+  { type: "PVC",    size: "1/2\"", pricePerFt: PIPE_PRICING.PVC["1/2\""],    costPerFt: PIPE_PRICING.PVC["1/2\""],    length: 0 },
+  { type: "ABS",    size: "1/2\"", pricePerFt: PIPE_PRICING.ABS["1/2\""],    costPerFt: PIPE_PRICING.ABS["1/2\""],    length: 0 },
+  { type: "Copper", size: "1/2\"", pricePerFt: PIPE_PRICING.Copper["1/2\""], costPerFt: PIPE_PRICING.Copper["1/2\""], length: 0 },
+  { type: "PEX",    size: "1/2\"", pricePerFt: PIPE_PRICING.PEX["1/2\""],    costPerFt: PIPE_PRICING.PEX["1/2\""],    length: 0 },
 ];
 
 const buildDefaultFittings = () =>
@@ -116,6 +204,7 @@ const buildDefaultFittings = () =>
     material:  "PVC",
     size:      "1/2\"",
     unitPrice: FITTING_PRICING.PVC[key]["1/2\""],
+    unitCost:  FITTING_PRICING.PVC[key]["1/2\""], // NEW — track cost separately
     qty:       0,
   }));
 
@@ -129,16 +218,51 @@ const fmtDate = (ts) => {
   return d.toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" });
 };
 
-const STATUS_QUOTE   = ["Draft", "Sent", "Approved", "Rejected"];
-const STATUS_INVOICE = ["Draft", "Sent", "Paid"];
+// NEW FEATURE — generate sequential document numbers
+const generateDocNumber = async (uid, type) => {
+  const counterRef = doc(db, "counters", `${uid}_${type}`);
+  const snap = await getDoc(counterRef);
+  const current = snap.exists() ? (snap.data().count || 0) : 0;
+  const next = current + 1;
+  await setDoc(counterRef, { count: next });
+  const year = new Date().getFullYear();
+  const padded = String(next).padStart(4, "0");
+  return type === "quote" ? `Q-${year}-${padded}` : `INV-${year}-${padded}`;
+};
+
+// NEW FEATURE — check if invoice is overdue
+const isOverdue = (inv) => {
+  if (inv.status === "Paid") return false;
+  if (!inv.dueDate) return false;
+  return new Date(inv.dueDate) < new Date();
+};
+
+const STATUS_QUOTE   = ["Draft", "Sent", "Approved", "Rejected", "Expired"];
+const STATUS_INVOICE = ["Draft", "Sent", "Paid", "Overdue"];
 
 const STATUS_STYLE = {
   Draft:    { background: "#f0f5fc", color: "#637592",  border: "1px solid #d4e1f5" },
   Sent:     { background: "#eff6ff", color: "#2e7dd1",  border: "1px solid #bfdbfe" },
   Approved: { background: "#f0fdf4", color: "#16a34a",  border: "1px solid #bbf7d0" },
   Rejected: { background: "#fef2f2", color: "#dc2626",  border: "1px solid #fecaca" },
+  Expired:  { background: "#fdf4ff", color: "#9333ea",  border: "1px solid #e9d5ff" },
   Paid:     { background: "#f0fdf4", color: "#16a34a",  border: "1px solid #bbf7d0" },
+  Overdue:  { background: "#fff7ed", color: "#c2410c",  border: "1px solid #fed7aa" },
   Invoice:  { background: "#fefce8", color: "#ca8a04",  border: "1px solid #fde68a" },
+};
+
+// NEW FEATURE — default company settings shape
+const DEFAULT_SETTINGS = {
+  companyName: "My Plumbing Co.",
+  companyAddress: "",
+  companyPhone: "",
+  companyEmail: "",
+  hstNumber: "",
+  defaultMarkup: 1.4,
+  defaultHourlyRate: 120,
+  quoteExpiryDays: 30,
+  defaultNetDays: 30,
+  defaultMarginWarning: 20,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -147,19 +271,19 @@ const STATUS_STYLE = {
 
 export default function App() {
   const [user, setUser]       = useState(null);
-  const [view, setView]       = useState("dashboard"); // dashboard | quote | customers | quotes | invoices
-  const [editingQuote, setEditingQuote]     = useState(null); // quote doc or null
-  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [view, setView]       = useState("dashboard");
+  const [editingQuote, setEditingQuote]     = useState(null);
   const [customers, setCustomers]           = useState([]);
   const [quotes, setQuotes]                 = useState([]);
   const [invoices, setInvoices]             = useState([]);
+  const [settings, setSettings]             = useState(DEFAULT_SETTINGS); // NEW
+  const [savedTemplates, setSavedTemplates] = useState([]); // NEW
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsub();
   }, []);
 
-  // Firestore listeners — only when user is logged in
   useEffect(() => {
     if (!user) return;
     const uid = user.uid;
@@ -176,14 +300,38 @@ export default function App() {
       query(collection(db, "invoices"), where("uid", "==", uid), orderBy("createdAt", "desc")),
       (snap) => setInvoices(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     );
-    return () => { unsubC(); unsubQ(); unsubI(); };
+
+    // NEW — load company settings
+    const unsubS = onSnapshot(doc(db, "settings", uid), (snap) => {
+      if (snap.exists()) setSettings({ ...DEFAULT_SETTINGS, ...snap.data() });
+    });
+
+    // NEW — load user-saved templates
+    const unsubT = onSnapshot(
+      query(collection(db, "templates"), where("uid", "==", uid), orderBy("createdAt", "desc")),
+      (snap) => setSavedTemplates(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    );
+
+    return () => { unsubC(); unsubQ(); unsubI(); unsubS(); unsubT(); };
   }, [user]);
 
   const handleLogin  = () => signInWithPopup(auth, googleProvider);
   const handleLogout = () => signOut(auth);
 
-  const openNewQuote = (prefilledCustomer = null) => {
-    setEditingQuote({ _new: true, customer: prefilledCustomer });
+  // NEW — check for expired quotes automatically
+  useEffect(() => {
+    if (!quotes.length) return;
+    quotes.forEach(async (q) => {
+      if (q.status === "Sent" && q.expiryDate) {
+        if (new Date(q.expiryDate) < new Date()) {
+          await updateDoc(doc(db, "quotes", q.id), { status: "Expired" });
+        }
+      }
+    });
+  }, [quotes]);
+
+  const openNewQuote = (prefilledCustomer = null, template = null) => {
+    setEditingQuote({ _new: true, customer: prefilledCustomer, _template: template });
     setView("quote");
   };
 
@@ -191,6 +339,21 @@ export default function App() {
     setEditingQuote(q);
     setView("quote");
   };
+
+  // NEW — public approval view (if URL has ?quote=ID)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const qid = params.get("quote");
+    if (qid) setView(`approve:${qid}`);
+  }, []);
+
+  if (!user && !view.startsWith("approve:")) return <LoginScreen onLogin={handleLogin} />;
+
+  // NEW — public quote approval page
+  if (view.startsWith("approve:")) {
+    const qid = view.split(":")[1];
+    return <PublicQuoteApproval quoteId={qid} />;
+  }
 
   if (!user) return <LoginScreen onLogin={handleLogin} />;
 
@@ -200,11 +363,15 @@ export default function App() {
     { id: "quotes",     label: "Quotes",     icon: "📄" },
     { id: "invoices",   label: "Invoices",   icon: "🧾" },
     { id: "customers",  label: "Customers",  icon: "👤" },
+    { id: "templates",  label: "Templates",  icon: "📋" }, // NEW
+    { id: "settings",   label: "Settings",   icon: "⚙️" }, // NEW
   ];
+
+  // NEW — overdue invoice count for badge
+  const overdueCount = invoices.filter(i => isOverdue(i) && i.status !== "Paid").length;
 
   return (
     <div style={s.appWrap}>
-      {/* ── HEADER ── */}
       <header style={s.header}>
         <div style={s.headerLeft}>
           <div style={s.headerIcon}>
@@ -223,11 +390,17 @@ export default function App() {
                 ? { ...s.navBtn, ...s.navBtnActive }
                 : s.navBtn}
               onClick={() => {
-                if (n.id === "quote") { setEditingQuote({ _new: true }); }
+                if (n.id === "quote") setEditingQuote({ _new: true });
                 setView(n.id);
               }}
             >
-              <span style={{ marginRight: 5 }}>{n.icon}</span>{n.label}
+              <span style={{ marginRight: 5, fontSize: 14 }}>{n.icon}</span>{n.label}
+              {/* NEW — overdue badge on Invoices nav */}
+              {n.id === "invoices" && overdueCount > 0 && (
+                <span style={{ marginLeft: 6, background: C.danger, color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: "0.7rem", fontWeight: 700 }}>
+                  {overdueCount}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -237,7 +410,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* ── VIEWS ── */}
       <main style={s.main}>
         {view === "dashboard" && (
           <DashboardView
@@ -254,9 +426,10 @@ export default function App() {
             quoteData={editingQuote}
             customers={customers}
             quotes={quotes}
+            settings={settings}
             onSaved={(q) => { setEditingQuote(q); setView("quotes"); }}
             onConvertToInvoice={async (q) => {
-              const inv = await convertToInvoice(q, user.uid);
+              await convertToInvoice(q, user.uid, settings);
               setView("invoices");
             }}
           />
@@ -291,6 +464,21 @@ export default function App() {
             onOpenQuote={openQuote}
           />
         )}
+        {/* NEW */}
+        {view === "templates" && (
+          <TemplatesView
+            user={user}
+            savedTemplates={savedTemplates}
+            onUseTemplate={(tpl) => openNewQuote(null, tpl)}
+          />
+        )}
+        {/* NEW */}
+        {view === "settings" && (
+          <SettingsView
+            user={user}
+            settings={settings}
+          />
+        )}
       </main>
     </div>
   );
@@ -300,9 +488,22 @@ export default function App() {
 // FIRESTORE HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function saveQuote(quoteData, uid) {
-  const payload = { ...quoteData, uid, updatedAt: serverTimestamp() };
-  delete payload.id; delete payload._new;
+async function saveQuote(quoteData, uid, settings) {
+  // NEW — auto-assign quote number if new
+  let quoteNumber = quoteData.quoteNumber;
+  if (!quoteNumber) {
+    quoteNumber = await generateDocNumber(uid, "quote");
+  }
+  // NEW — auto-set expiry date if not set
+  const expiryDays = settings?.quoteExpiryDays || 30;
+  const expiryDate = quoteData.expiryDate || (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + expiryDays);
+    return d.toISOString().split("T")[0];
+  })();
+
+  const payload = { ...quoteData, uid, quoteNumber, expiryDate, updatedAt: serverTimestamp() };
+  delete payload.id; delete payload._new; delete payload._template;
   if (quoteData.id) {
     await updateDoc(doc(db, "quotes", quoteData.id), payload);
     return { ...quoteData, ...payload };
@@ -319,6 +520,7 @@ async function duplicateQuote(q, uid) {
     uid,
     status: "Draft",
     jobName: q.jobName + " (copy)",
+    quoteNumber: await generateDocNumber(uid, "quote"), // NEW
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -327,13 +529,22 @@ async function duplicateQuote(q, uid) {
   return { ...payload, id: ref.id };
 }
 
-async function convertToInvoice(q, uid) {
+async function convertToInvoice(q, uid, settings) {
+  const netDays = settings?.defaultNetDays || 30;
+  const dueDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + netDays);
+    return d.toISOString().split("T")[0];
+  })();
+  const invoiceNumber = await generateDocNumber(uid, "invoice"); // NEW
   const payload = {
     ...q,
     uid,
     quoteId: q.id,
     status: "Draft",
     invoiceType: true,
+    invoiceNumber, // NEW
+    dueDate,       // NEW
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -342,8 +553,25 @@ async function convertToInvoice(q, uid) {
   return { ...payload, id: ref.id };
 }
 
+// NEW — save company settings
+async function saveSettings(uid, settings) {
+  await setDoc(doc(db, "settings", uid), { ...settings, updatedAt: serverTimestamp() });
+}
+
+// NEW — save a job as a reusable template
+async function saveAsTemplate(uid, quoteData, templateName) {
+  const payload = {
+    ...quoteData,
+    uid,
+    name: templateName,
+    createdAt: serverTimestamp(),
+  };
+  delete payload.id; delete payload._new;
+  await addDoc(collection(db, "templates"), payload);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// LOGIN SCREEN (unchanged from original)
+// LOGIN SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 
 function LoginScreen({ onLogin }) {
@@ -367,7 +595,7 @@ function LoginScreen({ onLogin }) {
           </svg>
           Continue with Google
         </button>
-        <p style={s.loginFooter}>Used by 4,200+ plumbers across Canada</p>
+        <p style={s.loginFooter}>Built for Ontario plumbers</p>
       </div>
     </div>
   );
@@ -389,12 +617,18 @@ function DashboardView({ quotes, invoices, customers, onOpenQuote, onNewQuote })
   const pendingQuotes = quotes.filter(q => q.status === "Sent" || q.status === "Draft").length;
   const recentQuotes  = quotes.slice(0, 5);
 
+  // NEW — overdue invoices
+  const overdueInvoices = invoices.filter(i => isOverdue(i) && i.status !== "Paid");
+  const pendingRevenue  = invoices
+    .filter(i => i.status === "Sent" || i.status === "Draft")
+    .reduce((s, i) => s + (Number(i.total) || 0), 0);
+
   const stats = [
-    { label: "Revenue (Paid)",  value: fmtCurrency(totalRevenue), color: C.green  },
-    { label: "Total Profit",    value: fmtCurrency(totalProfit),  color: C.sky    },
-    { label: "Total Jobs",      value: quotes.length + invoices.length, color: C.accent },
-    { label: "Pending Quotes",  value: pendingQuotes,             color: C.muted  },
-    { label: "Customers",       value: customers.length,          color: C.blue   },
+    { label: "Revenue (Paid)",   value: fmtCurrency(totalRevenue), color: C.green  },
+    { label: "Total Profit",     value: fmtCurrency(totalProfit),  color: C.sky    },
+    { label: "Pending Revenue",  value: fmtCurrency(pendingRevenue), color: C.accent },
+    { label: "Pending Quotes",   value: pendingQuotes,             color: C.muted  },
+    { label: "Customers",        value: customers.length,          color: C.blue   },
   ];
 
   return (
@@ -403,6 +637,21 @@ function DashboardView({ quotes, invoices, customers, onOpenQuote, onNewQuote })
         <h2 style={s.pageTitle}>Dashboard</h2>
         <button style={s.primaryBtn} onClick={() => onNewQuote()}>+ New Quote</button>
       </div>
+
+      {/* NEW — overdue alert banner */}
+      {overdueInvoices.length > 0 && (
+        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, padding: "14px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: "1.2rem" }}>⚠️</span>
+          <div>
+            <div style={{ fontWeight: 700, color: "#c2410c", fontSize: "0.9rem" }}>
+              {overdueInvoices.length} overdue invoice{overdueInvoices.length > 1 ? "s" : ""}
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "#9a3412", marginTop: 2 }}>
+              {fmtCurrency(overdueInvoices.reduce((s, i) => s + (Number(i.total) || 0), 0))} outstanding — follow up now
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
@@ -426,6 +675,28 @@ function DashboardView({ quotes, invoices, customers, onOpenQuote, onNewQuote })
           ))}
         </div>
       </div>
+
+      {/* NEW — overdue invoices section */}
+      {overdueInvoices.length > 0 && (
+        <div style={s.section}>
+          <div style={{ ...s.sectionHeader, background: "#fff7ed", borderBottom: "1px solid #fed7aa" }}>
+            <span style={{ ...s.sectionTitle, color: "#c2410c" }}>⚠️ Overdue Invoices</span>
+          </div>
+          <div style={s.sectionBody}>
+            {overdueInvoices.map(inv => (
+              <div key={inv.id} style={{ ...s.listRow, border: "1px solid #fed7aa" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={s.listRowTitle}>{inv.jobName || "Invoice"}</div>
+                  <div style={{ ...s.listRowMeta, color: "#c2410c" }}>
+                    {inv.invoiceNumber && `${inv.invoiceNumber} · `}Due {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString("en-CA") : "—"}
+                  </div>
+                </div>
+                <div style={{ fontWeight: 700, color: C.danger }}>{fmtCurrency(inv.total)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -438,7 +709,6 @@ function QuotesListView({ quotes, customers, onOpenQuote, onNewQuote, onDuplicat
   const [search, setSearch]         = useState("");
   const [filterStatus, setFilter]   = useState("All");
   const [exportRange, setExportRange] = useState({ from: "", to: "" });
-  const [exporting, setExporting]   = useState(false);
 
   const custName = (id) => customers.find(c => c.id === id)?.name || "—";
 
@@ -461,9 +731,9 @@ function QuotesListView({ quotes, customers, onOpenQuote, onNewQuote, onDuplicat
       const d = q.createdAt?.toDate ? q.createdAt.toDate() : new Date(q.createdAt || 0);
       return d <= new Date(exportRange.to + "T23:59:59");
     });
-
-    const headers = ["Date","Customer","Job Name","Job Type","Subtotal","HST","Total","Profit","Status"];
+    const headers = ["Quote #","Date","Customer","Job Name","Job Type","Subtotal","HST","Total","Profit","Status","Expiry"];
     const csvRows = rows.map(q => [
+      q.quoteNumber || "",
       fmtDate(q.createdAt),
       custName(q.customerId) || q.clientName || "",
       q.jobName || "",
@@ -473,11 +743,12 @@ function QuotesListView({ quotes, customers, onOpenQuote, onNewQuote, onDuplicat
       (q.total || 0).toFixed(2),
       (q.profit || 0).toFixed(2),
       q.status || "Draft",
+      q.expiryDate || "",
     ]);
     const csv = [headers, ...csvRows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-    a.download = "plumbquote-export.csv"; a.click();
+    a.download = "plumbquote-quotes.csv"; a.click();
   };
 
   return (
@@ -490,11 +761,8 @@ function QuotesListView({ quotes, customers, onOpenQuote, onNewQuote, onDuplicat
         </div>
       </div>
 
-      {/* Export date range */}
       <div style={{ ...s.section, padding: 0 }}>
-        <div style={s.sectionHeader}>
-          <span style={s.sectionTitle}>Export for Accountant</span>
-        </div>
+        <div style={s.sectionHeader}><span style={s.sectionTitle}>Export for Accountant</span></div>
         <div style={{ ...s.sectionBody, flexDirection: "row", flexWrap: "wrap", alignItems: "flex-end", gap: 12 }}>
           <div style={s.field}>
             <label style={s.label}>From Date</label>
@@ -504,11 +772,10 @@ function QuotesListView({ quotes, customers, onOpenQuote, onNewQuote, onDuplicat
             <label style={s.label}>To Date</label>
             <input type="date" style={s.input} value={exportRange.to} onChange={e => setExportRange(r => ({ ...r, to: e.target.value }))} />
           </div>
-          <button style={s.primaryBtn} onClick={exportCSV}>Export All Quotes (CSV)</button>
+          <button style={s.primaryBtn} onClick={exportCSV}>Export CSV</button>
         </div>
       </div>
 
-      {/* Filters */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <input
           style={{ ...s.input, maxWidth: 280 }}
@@ -558,11 +825,19 @@ function InvoicesListView({ invoices, customers, quotes, user }) {
     return inv.clientName || "—";
   };
 
+  // NEW — compute effective status (overdue check)
+  const effectiveStatus = (inv) => {
+    if (inv.status === "Paid") return "Paid";
+    if (isOverdue(inv)) return "Overdue";
+    return inv.status || "Draft";
+  };
+
   const filtered = useMemo(() => {
     return invoices.filter(inv => {
       const name = (inv.jobName || "") + custName(inv);
       const matchSearch = name.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = filterStatus === "All" || inv.status === filterStatus;
+      const effStatus = effectiveStatus(inv);
+      const matchStatus = filterStatus === "All" || effStatus === filterStatus || inv.status === filterStatus;
       return matchSearch && matchStatus;
     });
   }, [invoices, search, filterStatus, customers]);
@@ -584,10 +859,11 @@ function InvoicesListView({ invoices, customers, quotes, user }) {
       const d = inv.createdAt?.toDate ? inv.createdAt.toDate() : new Date(inv.createdAt || 0);
       return d <= new Date(exportRange.to + "T23:59:59");
     });
-
-    const headers = ["Date","Paid Date","Customer","Job Name","Subtotal","HST","Total","Profit","Status"];
+    const headers = ["Invoice #","Date","Due Date","Paid Date","Customer","Job Name","Subtotal","HST","Total","Profit","Status"];
     const csvRows = rows.map(inv => [
+      inv.invoiceNumber || "",
       fmtDate(inv.createdAt),
+      inv.dueDate || "",
       fmtDate(inv.paidAt),
       custName(inv),
       inv.jobName || "",
@@ -595,7 +871,7 @@ function InvoicesListView({ invoices, customers, quotes, user }) {
       (inv.hst || 0).toFixed(2),
       (inv.total || 0).toFixed(2),
       (inv.profit || 0).toFixed(2),
-      inv.status || "Draft",
+      effectiveStatus(inv),
     ]);
     const csv = [headers, ...csvRows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -610,7 +886,6 @@ function InvoicesListView({ invoices, customers, quotes, user }) {
         <button style={s.secondaryBtn} onClick={exportCSV}>⬇ Export CSV</button>
       </div>
 
-      {/* Export */}
       <div style={s.section}>
         <div style={s.sectionHeader}><span style={s.sectionTitle}>Export for Accountant</span></div>
         <div style={{ ...s.sectionBody, flexDirection: "row", flexWrap: "wrap", alignItems: "flex-end", gap: 12 }}>
@@ -622,11 +897,10 @@ function InvoicesListView({ invoices, customers, quotes, user }) {
             <label style={s.label}>To Date</label>
             <input type="date" style={s.input} value={exportRange.to} onChange={e => setExportRange(r => ({ ...r, to: e.target.value }))} />
           </div>
-          <button style={s.primaryBtn} onClick={exportCSV}>Export All Invoices (CSV)</button>
+          <button style={s.primaryBtn} onClick={exportCSV}>Export CSV</button>
         </div>
       </div>
 
-      {/* Filters */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <input
           style={{ ...s.input, maxWidth: 280 }}
@@ -646,26 +920,40 @@ function InvoicesListView({ invoices, customers, quotes, user }) {
       <div style={s.section}>
         <div style={s.sectionBody}>
           {filtered.length === 0 && <EmptyState text="No invoices yet." />}
-          {filtered.map(inv => (
-            <div key={inv.id} style={s.listRow}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={s.listRowTitle}>{inv.jobName || "Untitled Job"}</div>
-                <div style={s.listRowMeta}>{custName(inv)} · {fmtDate(inv.createdAt)}{inv.paidAt ? ` · Paid ${fmtDate(inv.paidAt)}` : ""}</div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <span style={{ ...s.statusBadge, ...(STATUS_STYLE[inv.status] || STATUS_STYLE.Draft) }}>{inv.status || "Draft"}</span>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontWeight: 700, color: C.navy }}>{fmtCurrency(inv.total)}</div>
-                  <div style={{ fontSize: "0.75rem", color: C.muted }}>profit {fmtCurrency(inv.profit)}</div>
+          {filtered.map(inv => {
+            const effStatus = effectiveStatus(inv);
+            return (
+              <div key={inv.id} style={{
+                ...s.listRow,
+                border: effStatus === "Overdue" ? "1px solid #fed7aa" : "1px solid " + C.border,
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* NEW — invoice number */}
+                  <div style={s.listRowTitle}>
+                    {inv.invoiceNumber && <span style={{ color: C.muted, fontWeight: 500, marginRight: 8, fontSize: "0.82rem" }}>{inv.invoiceNumber}</span>}
+                    {inv.jobName || "Untitled Job"}
+                  </div>
+                  <div style={s.listRowMeta}>
+                    {custName(inv)} · {fmtDate(inv.createdAt)}
+                    {inv.dueDate && ` · Due ${new Date(inv.dueDate).toLocaleDateString("en-CA")}`}
+                    {inv.paidAt && ` · Paid ${fmtDate(inv.paidAt)}`}
+                  </div>
                 </div>
-                {inv.status !== "Paid" && (
-                  <button style={{ ...s.primaryBtn, padding: "7px 14px", fontSize: "0.82rem" }} onClick={() => markPaid(inv)}>
-                    Mark Paid
-                  </button>
-                )}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span style={{ ...s.statusBadge, ...(STATUS_STYLE[effStatus] || STATUS_STYLE.Draft) }}>{effStatus}</span>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontWeight: 700, color: C.navy }}>{fmtCurrency(inv.total)}</div>
+                    <div style={{ fontSize: "0.75rem", color: C.muted }}>profit {fmtCurrency(inv.profit)}</div>
+                  </div>
+                  {inv.status !== "Paid" && (
+                    <button style={{ ...s.primaryBtn, padding: "7px 14px", fontSize: "0.82rem" }} onClick={() => markPaid(inv)}>
+                      Mark Paid
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -683,7 +971,6 @@ function CustomersView({ user, customers, quotes, invoices, onNewQuote, onOpenQu
   const [editCust, setEditCust]   = useState(null);
   const [form, setForm]           = useState({ name: "", phone: "", email: "", address: "", notes: "" });
   const [saving, setSaving]       = useState(false);
-  const [deleting, setDeleting]   = useState(false);
 
   const filtered = customers.filter(c =>
     (c.name || "").toLowerCase().includes(search.toLowerCase()) ||
@@ -720,13 +1007,17 @@ function CustomersView({ user, customers, quotes, invoices, onNewQuote, onOpenQu
 
   const handleDelete = async (c) => {
     if (!window.confirm(`Delete ${c.name}? This won't delete their quotes.`)) return;
-    setDeleting(true);
-    try { await deleteDoc(doc(db, "customers", c.id)); setSelected(null); }
-    finally { setDeleting(false); }
+    await deleteDoc(doc(db, "customers", c.id));
+    setSelected(null);
   };
 
   const custQuotes   = selected ? quotes.filter(q => q.customerId === selected.id) : [];
   const custInvoices = selected ? invoices.filter(i => i.customerId === selected.id) : [];
+
+  // NEW — lifetime value per customer
+  const lifetimeValue = custInvoices
+    .filter(i => i.status === "Paid")
+    .reduce((s, i) => s + (Number(i.total) || 0), 0);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -735,7 +1026,6 @@ function CustomersView({ user, customers, quotes, invoices, onNewQuote, onOpenQu
         <button style={s.primaryBtn} onClick={openNew}>+ Add Customer</button>
       </div>
 
-      {/* Add/Edit form */}
       {showForm && (
         <div style={s.section}>
           <div style={s.sectionHeader}>
@@ -764,7 +1054,7 @@ function CustomersView({ user, customers, quotes, invoices, onNewQuote, onOpenQu
             </div>
             <div style={s.field}>
               <label style={s.label}>Notes</label>
-              <textarea style={s.textarea} placeholder="Any notes about this customer..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+              <textarea style={s.textarea} placeholder="Property notes, access codes, etc." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button style={s.primaryBtn} onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save Customer"}</button>
@@ -775,7 +1065,6 @@ function CustomersView({ user, customers, quotes, invoices, onNewQuote, onOpenQu
       )}
 
       <div style={{ display: "flex", gap: 20, flexWrap: "wrap", alignItems: "flex-start" }}>
-        {/* Customer list */}
         <div style={{ flex: "0 0 300px", minWidth: 260 }}>
           <input
             style={{ ...s.input, marginBottom: 12 }}
@@ -808,7 +1097,6 @@ function CustomersView({ user, customers, quotes, invoices, onNewQuote, onOpenQu
           </div>
         </div>
 
-        {/* Customer detail */}
         {selected && (
           <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={s.section}>
@@ -825,10 +1113,14 @@ function CustomersView({ user, customers, quotes, invoices, onNewQuote, onOpenQu
                 {selected.email && <div style={s.detailLine}><span style={s.detailKey}>Email</span><span>{selected.email}</span></div>}
                 {selected.address && <div style={s.detailLine}><span style={s.detailKey}>Address</span><span>{selected.address}</span></div>}
                 {selected.notes && <div style={s.detailLine}><span style={s.detailKey}>Notes</span><span>{selected.notes}</span></div>}
+                {/* NEW — lifetime value */}
+                <div style={{ marginTop: 8, padding: "10px 14px", background: "#f0fdf4", borderRadius: 9, border: "1px solid #bbf7d0" }}>
+                  <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#16a34a" }}>Lifetime Value (Paid): </span>
+                  <span style={{ fontWeight: 700, color: "#15803d" }}>{fmtCurrency(lifetimeValue)}</span>
+                </div>
               </div>
             </div>
 
-            {/* Customer quotes */}
             <div style={s.section}>
               <div style={s.sectionHeader}><span style={s.sectionTitle}>Quotes ({custQuotes.length})</span></div>
               <div style={s.sectionBody}>
@@ -837,7 +1129,6 @@ function CustomersView({ user, customers, quotes, invoices, onNewQuote, onOpenQu
               </div>
             </div>
 
-            {/* Customer invoices */}
             {custInvoices.length > 0 && (
               <div style={s.section}>
                 <div style={s.sectionHeader}><span style={s.sectionTitle}>Invoices ({custInvoices.length})</span></div>
@@ -845,7 +1136,10 @@ function CustomersView({ user, customers, quotes, invoices, onNewQuote, onOpenQu
                   {custInvoices.map(inv => (
                     <div key={inv.id} style={s.listRow}>
                       <div style={{ flex: 1 }}>
-                        <div style={s.listRowTitle}>{inv.jobName || "Invoice"}</div>
+                        <div style={s.listRowTitle}>
+                          {inv.invoiceNumber && <span style={{ color: C.muted, fontWeight: 500, marginRight: 6, fontSize: "0.8rem" }}>{inv.invoiceNumber}</span>}
+                          {inv.jobName || "Invoice"}
+                        </div>
                         <div style={s.listRowMeta}>{fmtDate(inv.createdAt)}</div>
                       </div>
                       <span style={{ ...s.statusBadge, ...(STATUS_STYLE[inv.status] || STATUS_STYLE.Draft) }}>{inv.status}</span>
@@ -863,34 +1157,307 @@ function CustomersView({ user, customers, quotes, invoices, onNewQuote, onOpenQu
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// QUOTE EDITOR — full original calculator + new save/status/customer/invoice features
+// NEW FEATURE — TEMPLATES VIEW
 // ─────────────────────────────────────────────────────────────────────────────
 
-function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToInvoice }) {
-  // ── Meta fields (new)
-  const [jobName,     setJobName]     = useState(quoteData?.jobName     || "");
+function TemplatesView({ user, savedTemplates, onUseTemplate }) {
+  const allTemplates = [...ONTARIO_TEMPLATES, ...savedTemplates];
+
+  const handleDelete = async (tpl) => {
+    if (!tpl.uid) return; // can't delete built-ins
+    if (!window.confirm(`Delete template "${tpl.name}"?`)) return;
+    await deleteDoc(doc(db, "templates", tpl.id));
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={s.pageHeader}>
+        <h2 style={s.pageTitle}>Job Templates</h2>
+        <p style={{ fontSize: "0.85rem", color: C.muted }}>Start a quote from a pre-built template. Save any quote as a template from the quote editor.</p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+        {allTemplates.map((tpl, idx) => (
+          <div key={tpl.id || idx} style={{ ...s.section, padding: 0 }}>
+            <div style={{ ...s.sectionHeader, justifyContent: "space-between" }}>
+              <div>
+                <span style={s.sectionTitle}>{tpl.name}</span>
+                {!tpl.uid && (
+                  <span style={{ marginLeft: 8, fontSize: "0.7rem", background: "#eff6ff", color: C.sky, border: "1px solid #bfdbfe", borderRadius: 10, padding: "2px 8px" }}>Built-in</span>
+                )}
+              </div>
+              {tpl.uid && (
+                <button style={{ ...s.dangerBtn, padding: "4px 10px", fontSize: "0.75rem" }} onClick={() => handleDelete(tpl)}>Delete</button>
+              )}
+            </div>
+            <div style={{ padding: "14px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: "0.82rem", color: C.muted }}>{tpl.jobType} · {tpl.hours}h @ ${tpl.hourlyRate}/hr</div>
+              {tpl.materialsList && <div style={{ fontSize: "0.8rem", color: C.text, lineHeight: 1.5 }}>{tpl.materialsList.substring(0, 80)}{tpl.materialsList.length > 80 ? "…" : ""}</div>}
+              {tpl.siteNotes && <div style={{ fontSize: "0.78rem", color: C.muted, fontStyle: "italic" }}>📍 {tpl.siteNotes.substring(0, 60)}…</div>}
+              <button style={{ ...s.primaryBtn, marginTop: 4, textAlign: "center" }} onClick={() => onUseTemplate(tpl)}>
+                Use This Template →
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NEW FEATURE — SETTINGS VIEW
+// ─────────────────────────────────────────────────────────────────────────────
+
+function SettingsView({ user, settings }) {
+  const [form, setForm] = useState({ ...settings });
+  const [saving, setSaving]   = useState(false);
+  const [saved, setSaved]     = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveSettings(user.uid, form);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } finally { setSaving(false); }
+  };
+
+  const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={s.pageHeader}>
+        <h2 style={s.pageTitle}>Company Settings</h2>
+      </div>
+
+      <Section title="Company Info" icon="🏢">
+        <Row>
+          <Field label="Company Name">
+            <input style={s.input} value={form.companyName} onChange={e => set("companyName", e.target.value)} placeholder="Your Plumbing Co." />
+          </Field>
+          <Field label="Phone">
+            <input style={s.input} value={form.companyPhone} onChange={e => set("companyPhone", e.target.value)} placeholder="(905) 000-0000" />
+          </Field>
+        </Row>
+        <Row>
+          <Field label="Email">
+            <input style={s.input} value={form.companyEmail} onChange={e => set("companyEmail", e.target.value)} placeholder="info@yourco.ca" />
+          </Field>
+          <Field label="Address">
+            <input style={s.input} value={form.companyAddress} onChange={e => set("companyAddress", e.target.value)} placeholder="123 Main St, Hamilton, ON" />
+          </Field>
+        </Row>
+        {/* NEW — HST number */}
+        <Row>
+          <Field label="HST / GST Registration Number">
+            <input style={s.input} value={form.hstNumber} onChange={e => set("hstNumber", e.target.value)} placeholder="123456789 RT0001" />
+          </Field>
+        </Row>
+        <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 9, padding: "10px 14px", fontSize: "0.8rem", color: "#92400e" }}>
+          ⚠ Ontario requires your HST number on any invoice over $30. This number will appear on all your PDFs automatically.
+        </div>
+      </Section>
+
+      <Section title="Quote Defaults" icon="⚙️">
+        <Row>
+          <Field label="Default Hourly Rate ($)">
+            <input style={s.input} type="number" value={form.defaultHourlyRate} onChange={e => set("defaultHourlyRate", Number(e.target.value))} />
+          </Field>
+          <Field label="Default Markup Multiplier">
+            <input style={s.input} type="number" step="0.05" value={form.defaultMarkup} onChange={e => set("defaultMarkup", Number(e.target.value))} />
+          </Field>
+        </Row>
+        <Row>
+          <Field label="Quote Expiry (days)">
+            <input style={s.input} type="number" value={form.quoteExpiryDays} onChange={e => set("quoteExpiryDays", Number(e.target.value))} />
+          </Field>
+          <Field label="Invoice Payment Terms (days)">
+            <input style={s.input} type="number" value={form.defaultNetDays} onChange={e => set("defaultNetDays", Number(e.target.value))} />
+          </Field>
+        </Row>
+        <Row>
+          <Field label="Low Margin Warning (%)">
+            <input style={s.input} type="number" value={form.defaultMarginWarning} onChange={e => set("defaultMarginWarning", Number(e.target.value))} />
+          </Field>
+        </Row>
+      </Section>
+
+      <button
+        style={{ ...s.primaryBtn, alignSelf: "flex-start", padding: "12px 28px", fontSize: "0.95rem", background: saved ? C.green : C.navy }}
+        onClick={handleSave}
+        disabled={saving}
+      >
+        {saving ? "Saving…" : saved ? "✓ Settings Saved!" : "Save Settings"}
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NEW FEATURE — PUBLIC QUOTE APPROVAL PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+
+function PublicQuoteApproval({ quoteId }) {
+  const [quote, setQuote]   = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [action, setAction]   = useState(null); // "approved" | "declined"
+
+  useEffect(() => {
+    getDoc(doc(db, "quotes", quoteId)).then(snap => {
+      if (snap.exists()) setQuote({ id: snap.id, ...snap.data() });
+      setLoading(false);
+    });
+  }, [quoteId]);
+
+  const handleApprove = async () => {
+    await updateDoc(doc(db, "quotes", quoteId), { status: "Approved", approvedAt: serverTimestamp() });
+    setAction("approved");
+  };
+
+  const handleDecline = async () => {
+    await updateDoc(doc(db, "quotes", quoteId), { status: "Rejected", rejectedAt: serverTimestamp() });
+    setAction("declined");
+  };
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", background: C.light }}>
+      <div style={{ color: C.muted }}>Loading quote…</div>
+    </div>
+  );
+
+  if (!quote) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", background: C.light }}>
+      <div style={{ color: C.danger }}>Quote not found.</div>
+    </div>
+  );
+
+  if (action === "approved") return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", background: "#f0fdf4" }}>
+      <div style={{ textAlign: "center", padding: 40 }}>
+        <div style={{ fontSize: "3rem", marginBottom: 16 }}>✅</div>
+        <h2 style={{ fontFamily: "'DM Serif Display', serif", color: "#15803d", fontSize: "1.8rem" }}>Quote Approved!</h2>
+        <p style={{ color: "#16a34a", marginTop: 8 }}>Thank you. Your contractor will be in touch shortly.</p>
+      </div>
+    </div>
+  );
+
+  if (action === "declined") return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", background: "#fef2f2" }}>
+      <div style={{ textAlign: "center", padding: 40 }}>
+        <div style={{ fontSize: "3rem", marginBottom: 16 }}>❌</div>
+        <h2 style={{ fontFamily: "'DM Serif Display', serif", color: "#dc2626", fontSize: "1.8rem" }}>Quote Declined</h2>
+        <p style={{ color: "#dc2626", marginTop: 8 }}>Your contractor has been notified.</p>
+      </div>
+    </div>
+  );
+
+  const alreadyActioned = quote.status === "Approved" || quote.status === "Rejected" || quote.status === "Expired";
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.light, fontFamily: "'DM Sans', sans-serif", padding: "40px 20px" }}>
+      <div style={{ maxWidth: 620, margin: "0 auto" }}>
+        {/* Header */}
+        <div style={{ background: C.navy, borderRadius: 16, padding: "24px 28px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.5rem", color: C.white }}>
+              Plumb<span style={{ color: C.sky }}>Quote</span> 3
+            </div>
+            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.8rem", marginTop: 4 }}>Quote for your review</div>
+          </div>
+          {quote.quoteNumber && (
+            <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px 16px", color: C.accent, fontWeight: 700, fontSize: "1rem" }}>
+              {quote.quoteNumber}
+            </div>
+          )}
+        </div>
+
+        {/* Quote details */}
+        <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, overflow: "hidden", marginBottom: 16 }}>
+          <div style={{ ...s.sectionHeader }}>
+            <span style={s.sectionTitle}>Quote Details</span>
+          </div>
+          <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+            {quote.jobName && <div style={s.detailLine}><span style={s.detailKey}>Job</span><span style={{ fontWeight: 600 }}>{quote.jobName}</span></div>}
+            {(quote.clientName) && <div style={s.detailLine}><span style={s.detailKey}>Prepared for</span><span>{quote.clientName}</span></div>}
+            {quote.jobType && <div style={s.detailLine}><span style={s.detailKey}>Job Type</span><span>{quote.jobType}</span></div>}
+            {quote.expiryDate && <div style={s.detailLine}><span style={s.detailKey}>Valid Until</span><span>{new Date(quote.expiryDate).toLocaleDateString("en-CA")}</span></div>}
+            {quote.siteNotes && <div style={s.detailLine}><span style={s.detailKey}>Notes</span><span>{quote.siteNotes}</span></div>}
+          </div>
+        </div>
+
+        {/* Totals */}
+        <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, padding: "20px 24px", marginBottom: 16 }}>
+          <div style={s.summaryLine}><span>Subtotal</span><span>{fmtCurrency(quote.subtotal)}</span></div>
+          <div style={{ ...s.summaryLine, color: C.sky }}><span>HST (13%)</span><span>{fmtCurrency(quote.hst)}</span></div>
+          <div style={s.summaryDivider} />
+          <div style={s.summaryTotal}><span>Total</span><span>{fmtCurrency(quote.total)}</span></div>
+        </div>
+
+        {/* Action buttons */}
+        {alreadyActioned ? (
+          <div style={{ textAlign: "center", padding: "20px", background: C.white, borderRadius: 16, border: `1px solid ${C.border}` }}>
+            <span style={{ ...s.statusBadge, ...STATUS_STYLE[quote.status], fontSize: "0.9rem", padding: "8px 18px" }}>{quote.status}</span>
+            <p style={{ marginTop: 12, color: C.muted, fontSize: "0.85rem" }}>This quote has already been {quote.status.toLowerCase()}.</p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 12 }}>
+            <button
+              style={{ ...s.primaryBtn, flex: 1, padding: "16px", fontSize: "1rem", background: "#16a34a", textAlign: "center" }}
+              onClick={handleApprove}
+            >
+              ✓ Approve Quote
+            </button>
+            <button
+              style={{ ...s.dangerBtn, flex: 1, padding: "16px", fontSize: "1rem", textAlign: "center" }}
+              onClick={handleDecline}
+            >
+              ✕ Decline
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUOTE EDITOR
+// ─────────────────────────────────────────────────────────────────────────────
+
+function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, onConvertToInvoice }) {
+  const tpl = quoteData?._template;
+
+  const [jobName,     setJobName]     = useState(quoteData?.jobName     || tpl?.name     || "");
   const [customerId,  setCustomerId]  = useState(quoteData?.customerId  || "");
   const [status,      setStatus]      = useState(quoteData?.status      || "Draft");
   const [saving,      setSaving]      = useState(false);
   const [pdfSuccess,  setPdfSuccess]  = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false); // NEW
+  const [templateName, setTemplateName] = useState(""); // NEW
+  const [savingTemplate, setSavingTemplate] = useState(false); // NEW
+  const [shareUrl, setShareUrl]       = useState(quoteData?.id ? `${window.location.origin}${window.location.pathname}?quote=${quoteData.id}` : null); // NEW
 
-  // ── Original fields (unchanged)
-  const [companyName, setCompanyName] = useState(quoteData?.companyName || "Plumb Quote 3");
+  // NEW — site notes
+  const [siteNotes, setSiteNotes] = useState(quoteData?.siteNotes || tpl?.siteNotes || "");
+
+  const [companyName, setCompanyName] = useState(quoteData?.companyName || settings?.companyName || "Plumb Quote 3");
   const [clientName,  setClientName]  = useState(quoteData?.clientName  || (quoteData?.customer?.name || ""));
-  const [jobType,     setJobType]     = useState(quoteData?.jobType     || "Drain Cleaning");
-  const [hours,       setHours]       = useState(quoteData?.hours       ?? 1);
-  const [hourlyRate,  setHourlyRate]  = useState(quoteData?.hourlyRate  ?? 120);
-  const [materialCost,setMaterialCost]= useState(quoteData?.materialCost ?? 0);
-  const [markup,      setMarkup]      = useState(quoteData?.markup       ?? 1.4);
-  const [materialsList,setMaterialsList]=useState(quoteData?.materialsList || "");
+  const [jobType,     setJobType]     = useState(quoteData?.jobType     || tpl?.jobType    || "Drain Cleaning");
+  const [hours,       setHours]       = useState(quoteData?.hours       ?? tpl?.hours      ?? settings?.defaultHourlyRate !== undefined ? 1 : 1);
+  const [hourlyRate,  setHourlyRate]  = useState(quoteData?.hourlyRate  ?? tpl?.hourlyRate ?? settings?.defaultHourlyRate ?? 120);
+  const [materialCost,setMaterialCost]= useState(quoteData?.materialCost ?? tpl?.materialCost ?? 0);
+  const [markup,      setMarkup]      = useState(quoteData?.markup       ?? tpl?.markup    ?? settings?.defaultMarkup ?? 1.4);
+  const [materialsList,setMaterialsList]=useState(quoteData?.materialsList || tpl?.materialsList || "");
   const [logo,        setLogo]        = useState(quoteData?.logo        || null);
-  const [fixtures,    setFixtures]    = useState(quoteData?.fixtures    || [{ name: "", labour: 0, qty: 1 }]);
+  const [fixtures,    setFixtures]    = useState(quoteData?.fixtures    || tpl?.fixtures   || [{ name: "", labour: 0, qty: 1 }]);
   const [pipes,       setPipes]       = useState(quoteData?.pipes       || buildDefaultPipes());
   const [fittings,    setFittings]    = useState(quoteData?.fittings    || buildDefaultFittings());
   const [roughLabour, setRoughLabour] = useState(quoteData?.roughLabour ?? 0);
+  // NEW — subcontractor cost
+  const [subContractorCost, setSubContractorCost] = useState(quoteData?.subContractorCost ?? tpl?.subContractorCost ?? 0);
 
-  // Pre-fill client name from selected customer
   useEffect(() => {
     if (customerId) {
       const c = customers.find(c => c.id === customerId);
@@ -917,28 +1484,40 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
     if (field === "type" || field === "size") {
       const t  = field === "type" ? value : u[i].type;
       const sz = field === "size" ? value : u[i].size;
-      if (PIPE_PRICING[t]?.[sz] !== undefined) u[i].pricePerFt = PIPE_PRICING[t][sz];
+      if (PIPE_PRICING[t]?.[sz] !== undefined) {
+        u[i].pricePerFt = PIPE_PRICING[t][sz];
+        u[i].costPerFt  = PIPE_PRICING[t][sz]; // NEW — sync cost
+      }
     }
     setPipes(u);
   };
+
   const updateFitting = (i, field, value) => {
     const u = [...fittings]; u[i][field] = value;
     if (field === "material" || field === "size") {
       const mat = field === "material" ? value : u[i].material;
       const sz  = field === "size"     ? value : u[i].size;
       const fp  = FITTING_PRICING[mat]?.[u[i].key]?.[sz];
-      if (fp !== undefined) u[i].unitPrice = fp;
+      if (fp !== undefined) {
+        u[i].unitPrice = fp;
+        u[i].unitCost  = fp; // NEW — sync cost
+      }
     }
     setFittings(u);
   };
 
-  // ── Calculations (unchanged)
+  // ── Calculations
   const laborCost     = hourlyRate * hours;
   const materials     = materialCost * markup;
   const fixtureTotal  = fixtures.reduce((s, f) => s + Number(f.labour) * Number(f.qty), 0);
   const pipesTotal    = pipes.reduce((s, p) => s + Number(p.length) * Number(p.pricePerFt), 0);
   const fittingsTotal = fittings.reduce((s, f) => s + Number(f.qty) * Number(f.unitPrice), 0);
+
+  // NEW — separate cost totals for correct profit on Rough In
+  const pipesCost     = pipes.reduce((s, p) => s + Number(p.length) * Number(p.costPerFt || p.pricePerFt), 0);
+  const fittingsCost  = fittings.reduce((s, f) => s + Number(f.qty) * Number(f.unitCost || f.unitPrice), 0);
   const roughInTotal  = pipesTotal + fittingsTotal + Number(roughLabour);
+  const roughInCost   = pipesCost + fittingsCost + Number(roughLabour); // NEW — true cost
 
   const subtotal =
     jobType === "Fixture Install" ? fixtureTotal + materials
@@ -949,16 +1528,24 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
   const hst      = subtotal * HST_RATE;
   const total    = subtotal + hst;
 
-  // Profit = revenue - cost (cost = materials at cost, not marked up, + labour)
+  // NEW — fixed profit calculation
   const costBase =
-    jobType === "Rough In"      ? roughInTotal
-    : jobType === "Fixture Install" ? fixtureTotal + materialCost
-    : laborCost + materialCost;
-  const profit   = total - costBase;
-  const profitPct = costBase > 0 ? ((profit / total) * 100).toFixed(1) : "0.0";
+    jobType === "Rough In"          ? roughInCost + Number(subContractorCost)
+    : jobType === "Fixture Install" ? fixtureTotal + materialCost + Number(subContractorCost)
+    : laborCost + materialCost + Number(subContractorCost);
 
-  // ── Save to Firestore
+  const profit    = total - costBase;
+  const profitPct = total > 0 ? ((profit / total) * 100).toFixed(1) : "0.0";
+
+  // NEW — low margin warning
+  const marginWarning = Number(profitPct) < (settings?.defaultMarginWarning || LOW_MARGIN_THRESHOLD);
+
   const handleSave = async () => {
+    // NEW — warn on low margin before saving
+    if (marginWarning && profit > 0) {
+      const ok = window.confirm(`⚠ This job is only ${profitPct}% margin. Are you sure you want to save?`);
+      if (!ok) return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -966,10 +1553,14 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
         jobName, customerId, status, companyName, clientName, jobType,
         hours, hourlyRate, materialCost, markup, materialsList, logo,
         fixtures, pipes, fittings, roughLabour,
+        siteNotes,         // NEW
+        subContractorCost, // NEW
         subtotal, hst, total, profit: Number(profit.toFixed(2)),
         pipesTotal, fittingsTotal, roughInTotal,
       };
-      const saved = await saveQuote(payload, user.uid);
+      const saved = await saveQuote(payload, user.uid, settings);
+      // NEW — set share URL after first save
+      if (!shareUrl) setShareUrl(`${window.location.origin}${window.location.pathname}?quote=${saved.id}`);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2500);
       onSaved(saved);
@@ -978,64 +1569,111 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
 
   const handleConvert = async () => {
     if (!quoteData?.id) { alert("Save the quote first."); return; }
-    await onConvertToInvoice({ ...quoteData, jobName, customerId, status, subtotal, hst, total, profit });
+    await onConvertToInvoice({ ...quoteData, jobName, customerId, status, siteNotes, subtotal, hst, total, profit, subContractorCost });
   };
 
-  // ── PDF (original, unchanged — just passes through)
+  // NEW — save as template
+  const handleSaveTemplate = async () => {
+    if (!templateName.trim()) return;
+    setSavingTemplate(true);
+    try {
+      await saveAsTemplate(user.uid, {
+        name: templateName, jobName, jobType, hours, hourlyRate, materialCost,
+        markup, materialsList, fixtures, pipes, fittings, roughLabour,
+        siteNotes, subContractorCost,
+      }, templateName);
+      setShowSaveTemplateModal(false);
+      setTemplateName("");
+      alert("Template saved! Find it in the Templates tab.");
+    } finally { setSavingTemplate(false); }
+  };
+
+  // NEW — copy share link
+  const copyShareLink = () => {
+    if (!shareUrl) { alert("Save the quote first to generate a share link."); return; }
+    navigator.clipboard.writeText(shareUrl);
+    alert("Share link copied! Send it to your customer — they can approve or decline the quote from their browser.");
+  };
+
   const generatePDF = () => {
-    const doc  = new jsPDF();
+    const pdfdoc  = new jsPDF();
     const pageW = 210;
     const L = 15, R = pageW - 15;
 
-    if (logo) doc.addImage(logo, "PNG", R - 40, 10, 40, 20);
-    doc.setFontSize(22); doc.setTextColor(13, 31, 60);
-    doc.text(companyName, L, 22);
-    doc.setFontSize(10); doc.setTextColor(99, 117, 146);
-    doc.text("Client: " + (clientName || "\u2014"), L, 32);
-    doc.text("Job: " + (jobName || jobType), L, 39);
-    doc.text("Date: " + new Date().toLocaleDateString("en-CA"), L, 46);
-    doc.setDrawColor(212, 225, 245); doc.setLineWidth(0.5);
-    doc.line(L, 51, R, 51);
+    if (logo) pdfdoc.addImage(logo, "PNG", R - 40, 10, 40, 20);
+    pdfdoc.setFontSize(22); pdfdoc.setTextColor(13, 31, 60);
+    pdfdoc.text(companyName, L, 22);
+    pdfdoc.setFontSize(9); pdfdoc.setTextColor(99, 117, 146);
+    // NEW — company details from settings
+    if (settings?.companyAddress) { pdfdoc.text(settings.companyAddress, L, 30); }
+    if (settings?.companyPhone)   { pdfdoc.text(settings.companyPhone, L, 36); }
+    if (settings?.companyEmail)   { pdfdoc.text(settings.companyEmail, L, 42); }
 
-    let y = 60;
+    // NEW — quote number top right
+    if (quoteData?.quoteNumber) {
+      pdfdoc.setFontSize(14); pdfdoc.setTextColor(13, 31, 60); pdfdoc.setFont(undefined, "bold");
+      pdfdoc.text(quoteData.quoteNumber, R, 22, { align: "right" });
+      pdfdoc.setFont(undefined, "normal");
+    }
+
+    pdfdoc.setFontSize(10); pdfdoc.setTextColor(99, 117, 146);
+    let infoY = settings?.companyAddress ? 50 : 32;
+    pdfdoc.text("Client: " + (clientName || "\u2014"), L, infoY);
+    pdfdoc.text("Job: " + (jobName || jobType), L, infoY + 7);
+    pdfdoc.text("Date: " + new Date().toLocaleDateString("en-CA"), L, infoY + 14);
+    if (quoteData?.expiryDate) pdfdoc.text("Valid until: " + new Date(quoteData.expiryDate).toLocaleDateString("en-CA"), L, infoY + 21);
+
+    pdfdoc.setDrawColor(212, 225, 245); pdfdoc.setLineWidth(0.5);
+    pdfdoc.line(L, infoY + 27, R, infoY + 27);
+
+    let y = infoY + 37;
+
+    // NEW — site notes on PDF
+    if (siteNotes) {
+      pdfdoc.setFontSize(9); pdfdoc.setTextColor(146, 64, 14);
+      pdfdoc.setFillColor(255, 251, 235);
+      pdfdoc.roundedRect(L, y - 4, R - L, 12, 2, 2, "F");
+      pdfdoc.text("Site Notes: " + siteNotes, L + 3, y + 4);
+      y += 18;
+    }
 
     const sectionHeader = (title) => {
-      doc.setFillColor(240, 245, 252);
-      doc.roundedRect(L, y - 5, R - L, 10, 2, 2, "F");
-      doc.setFontSize(11); doc.setTextColor(13, 31, 60); doc.setFont(undefined, "bold");
-      doc.text(title, L + 3, y + 2); doc.setFont(undefined, "normal"); y += 12;
+      pdfdoc.setFillColor(240, 245, 252);
+      pdfdoc.roundedRect(L, y - 5, R - L, 10, 2, 2, "F");
+      pdfdoc.setFontSize(11); pdfdoc.setTextColor(13, 31, 60); pdfdoc.setFont(undefined, "bold");
+      pdfdoc.text(title, L + 3, y + 2); pdfdoc.setFont(undefined, "normal"); y += 12;
     };
     const colHeader = (cols) => {
-      doc.setFontSize(8); doc.setTextColor(99, 117, 146);
+      pdfdoc.setFontSize(8); pdfdoc.setTextColor(99, 117, 146);
       cols.forEach(([txt, x, align]) => {
-        if (align === "right") { const w = doc.getTextWidth(txt); doc.text(txt, x - w, y); }
-        else doc.text(txt, x, y);
+        if (align === "right") { const w = pdfdoc.getTextWidth(txt); pdfdoc.text(txt, x - w, y); }
+        else pdfdoc.text(txt, x, y);
       });
-      y += 4; doc.setDrawColor(212, 225, 245); doc.setLineWidth(0.3);
-      doc.line(L, y, R, y); y += 6;
+      y += 4; pdfdoc.setDrawColor(212, 225, 245); pdfdoc.setLineWidth(0.3);
+      pdfdoc.line(L, y, R, y); y += 6;
     };
     const dataRow = (cols, shade) => {
-      if (shade) { doc.setFillColor(248, 251, 255); doc.rect(L, y - 5, R - L, 8, "F"); }
-      doc.setFontSize(9); doc.setTextColor(42, 58, 82);
+      if (shade) { pdfdoc.setFillColor(248, 251, 255); pdfdoc.rect(L, y - 5, R - L, 8, "F"); }
+      pdfdoc.setFontSize(9); pdfdoc.setTextColor(42, 58, 82);
       cols.forEach(([txt, x, align]) => {
-        if (align === "right") { const w = doc.getTextWidth(String(txt)); doc.text(String(txt), x - w, y); }
-        else doc.text(String(txt), x, y);
+        if (align === "right") { const w = pdfdoc.getTextWidth(String(txt)); pdfdoc.text(String(txt), x - w, y); }
+        else pdfdoc.text(String(txt), x, y);
       });
       y += 9;
     };
     const subtotalLine = (label, val) => {
-      doc.setFontSize(9); doc.setTextColor(99, 117, 146);
-      doc.text(label, 130, y);
-      doc.setTextColor(13, 31, 60); doc.setFont(undefined, "bold");
-      const w = doc.getTextWidth("$" + val);
-      doc.text("$" + val, R - w, y); doc.setFont(undefined, "normal"); y += 8;
+      pdfdoc.setFontSize(9); pdfdoc.setTextColor(99, 117, 146);
+      pdfdoc.text(label, 130, y);
+      pdfdoc.setTextColor(13, 31, 60); pdfdoc.setFont(undefined, "bold");
+      const w = pdfdoc.getTextWidth("$" + val);
+      pdfdoc.text("$" + val, R - w, y); pdfdoc.setFont(undefined, "normal"); y += 8;
     };
 
     if (jobType === "Rough In") {
       sectionHeader("Rough-In Piping");
       colHeader([["Pipe Type", L + 2, "left"], ["Size", 62, "left"], ["Length", 95, "left"], ["$/ft", 128, "left"], ["Cost", R, "right"]]);
       const activePipes = pipes.filter(p => Number(p.length) > 0);
-      if (activePipes.length === 0) { doc.setFontSize(9); doc.setTextColor(99, 117, 146); doc.text("No piping entered.", L + 2, y); y += 9; }
+      if (activePipes.length === 0) { pdfdoc.setFontSize(9); pdfdoc.setTextColor(99, 117, 146); pdfdoc.text("No piping entered.", L + 2, y); y += 9; }
       else activePipes.forEach((p, idx) => {
         dataRow([[p.type, L + 2, "left"], [p.size, 62, "left"], [p.length + " ft", 95, "left"], ["$" + Number(p.pricePerFt).toFixed(2), 128, "left"], ["$" + (Number(p.length) * Number(p.pricePerFt)).toFixed(2), R, "right"]], idx % 2 === 0);
       });
@@ -1044,7 +1682,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
       sectionHeader("Rough-In Fittings");
       colHeader([["Fitting", L + 2, "left"], ["Material", 55, "left"], ["Size", 85, "left"], ["Qty", 112, "left"], ["Unit", 135, "left"], ["Total", R, "right"]]);
       const activeFittings = fittings.filter(f => Number(f.qty) > 0);
-      if (activeFittings.length === 0) { doc.setFontSize(9); doc.setTextColor(99, 117, 146); doc.text("No fittings entered.", L + 2, y); y += 9; }
+      if (activeFittings.length === 0) { pdfdoc.setFontSize(9); pdfdoc.setTextColor(99, 117, 146); pdfdoc.text("No fittings entered.", L + 2, y); y += 9; }
       else activeFittings.forEach((f, idx) => {
         dataRow([[f.label, L + 2, "left"], [f.material, 55, "left"], [f.size, 85, "left"], [String(f.qty), 112, "left"], ["$" + Number(f.unitPrice).toFixed(2), 135, "left"], ["$" + (Number(f.qty) * Number(f.unitPrice)).toFixed(2), R, "right"]], idx % 2 === 0);
       });
@@ -1064,30 +1702,41 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
     } else {
       sectionHeader("Labour & Materials");
       dataRow([["Labour", L + 2, "left"], ["$" + laborCost.toFixed(2), R, "right"]], false);
-      dataRow([["Materials", L + 2, "left"], ["$" + materials.toFixed(2), R, "right"]], true); y += 4;
+      dataRow([["Materials (incl. markup)", L + 2, "left"], ["$" + materials.toFixed(2), R, "right"]], true); y += 4;
     }
 
-    doc.setDrawColor(212, 225, 245); doc.setLineWidth(0.5); doc.line(L, y, R, y); y += 8;
-    doc.setFontSize(9); doc.setTextColor(99, 117, 146);
-    doc.text("Subtotal", 130, y);
-    const sw = doc.getTextWidth("$" + subtotal.toFixed(2));
-    doc.setTextColor(42, 58, 82); doc.text("$" + subtotal.toFixed(2), R - sw, y); y += 8;
-    doc.setTextColor(99, 117, 146); doc.text("HST (13%)", 130, y);
-    const hw = doc.getTextWidth("$" + hst.toFixed(2));
-    doc.setTextColor(42, 58, 82); doc.text("$" + hst.toFixed(2), R - hw, y); y += 5;
-    doc.setDrawColor(13, 31, 60); doc.setLineWidth(0.7); doc.line(130, y, R, y); y += 8;
-    doc.setFontSize(13); doc.setTextColor(13, 31, 60); doc.setFont(undefined, "bold");
-    doc.text("TOTAL", 130, y);
-    const tw = doc.getTextWidth("$" + total.toFixed(2));
-    doc.text("$" + total.toFixed(2), R - tw, y); doc.setFont(undefined, "normal");
-    if (jobType !== "Rough In" && materialsList) {
-      y += 16; doc.setFontSize(9); doc.setTextColor(99, 117, 146);
-      doc.text("Materials Used:", L, y); y += 6;
-      doc.setTextColor(42, 58, 82); doc.text(materialsList, L, y);
+    // NEW — subcontractor line on PDF
+    if (Number(subContractorCost) > 0) {
+      dataRow([["Subcontractor / Helper", L + 2, "left"], ["$" + Number(subContractorCost).toFixed(2), R, "right"]], false);
     }
-    doc.setFontSize(8); doc.setTextColor(180, 195, 215);
-    doc.text("Generated by PlumbQuote 3  \u2022  Prices are estimates only. Verify before submitting.", L, 285);
-    doc.save((clientName || jobName || "quote") + ".pdf");
+
+    pdfdoc.setDrawColor(212, 225, 245); pdfdoc.setLineWidth(0.5); pdfdoc.line(L, y, R, y); y += 8;
+    pdfdoc.setFontSize(9); pdfdoc.setTextColor(99, 117, 146);
+    pdfdoc.text("Subtotal", 130, y);
+    const sw = pdfdoc.getTextWidth("$" + subtotal.toFixed(2));
+    pdfdoc.setTextColor(42, 58, 82); pdfdoc.text("$" + subtotal.toFixed(2), R - sw, y); y += 8;
+    pdfdoc.setTextColor(99, 117, 146); pdfdoc.text("HST (13%)", 130, y);
+    const hw = pdfdoc.getTextWidth("$" + hst.toFixed(2));
+    pdfdoc.setTextColor(42, 58, 82); pdfdoc.text("$" + hst.toFixed(2), R - hw, y); y += 5;
+    pdfdoc.setDrawColor(13, 31, 60); pdfdoc.setLineWidth(0.7); pdfdoc.line(130, y, R, y); y += 8;
+    pdfdoc.setFontSize(13); pdfdoc.setTextColor(13, 31, 60); pdfdoc.setFont(undefined, "bold");
+    pdfdoc.text("TOTAL", 130, y);
+    const tw = pdfdoc.getTextWidth("$" + total.toFixed(2));
+    pdfdoc.text("$" + total.toFixed(2), R - tw, y); pdfdoc.setFont(undefined, "normal");
+
+    if (jobType !== "Rough In" && materialsList) {
+      y += 16; pdfdoc.setFontSize(9); pdfdoc.setTextColor(99, 117, 146);
+      pdfdoc.text("Materials Used:", L, y); y += 6;
+      pdfdoc.setTextColor(42, 58, 82); pdfdoc.text(materialsList, L, y);
+    }
+
+    // NEW — HST number footer
+    const footerParts = ["Generated by PlumbQuote 3  •  Prices are estimates only."];
+    if (settings?.hstNumber) footerParts.push("HST/GST Reg: " + settings.hstNumber);
+    pdfdoc.setFontSize(8); pdfdoc.setTextColor(180, 195, 215);
+    pdfdoc.text(footerParts.join("  •  "), L, 285);
+
+    pdfdoc.save((clientName || jobName || "quote") + ".pdf");
     setPdfSuccess(true);
     setTimeout(() => setPdfSuccess(false), 3000);
   };
@@ -1095,7 +1744,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-      {/* ── TOTAL BANNER (original) */}
+      {/* ── TOTAL BANNER */}
       <div style={s.totalBanner}>
         <div>
           <div style={s.totalLabel}>Estimated Total</div>
@@ -1103,12 +1752,15 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
           <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", marginTop: 4 }}>incl. HST (13%)</div>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {/* Profit badge */}
           <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 18px", textAlign: "center" }}>
             <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>PROFIT</div>
             <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.3rem", color: profit >= 0 ? "#4ade80" : "#f87171" }}>
               {fmtCurrency(profit)} <span style={{ fontSize: "0.85rem", opacity: 0.7 }}>({profitPct}%)</span>
             </div>
+            {/* NEW — margin warning badge */}
+            {marginWarning && profit > 0 && (
+              <div style={{ fontSize: "0.7rem", color: "#fbbf24", marginTop: 4 }}>⚠ Low margin</div>
+            )}
           </div>
           <button style={pdfSuccess ? { ...s.pdfBtn, ...s.pdfBtnSuccess } : s.pdfBtn} onClick={generatePDF}>
             {pdfSuccess ? "✓ Downloaded!" : "⬇ Download PDF"}
@@ -1116,7 +1768,14 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
         </div>
       </div>
 
-      {/* ── NEW: Quote meta bar */}
+      {/* NEW — low margin warning banner */}
+      {marginWarning && profit > 0 && (
+        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "12px 18px", fontSize: "0.85rem", color: "#c2410c" }}>
+          ⚠ <strong>Low margin warning:</strong> This job is {profitPct}% margin. Consider reviewing your rates or material costs before sending.
+        </div>
+      )}
+
+      {/* ── Quote meta bar */}
       <div style={s.section}>
         <div style={s.sectionHeader}><span style={s.sectionTitle}>Quote Info</span></div>
         <div style={s.sectionBody}>
@@ -1139,6 +1798,18 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
               </select>
             </div>
           </div>
+
+          {/* NEW — site notes */}
+          <div style={s.field}>
+            <label style={s.label}>Site / Job Notes</label>
+            <textarea
+              style={{ ...s.textarea, minHeight: 60 }}
+              placeholder="Access codes, gate entry, dog on property, shut-off location, special instructions..."
+              value={siteNotes}
+              onChange={e => setSiteNotes(e.target.value)}
+            />
+          </div>
+
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button style={saveSuccess ? { ...s.primaryBtn, background: C.green } : s.primaryBtn} onClick={handleSave} disabled={saving}>
               {saving ? "Saving…" : saveSuccess ? "✓ Saved!" : "💾 Save Quote"}
@@ -1148,11 +1819,48 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
                 🧾 Convert to Invoice
               </button>
             )}
+            {/* NEW — share link button */}
+            <button style={s.secondaryBtn} onClick={copyShareLink}>
+              🔗 {shareUrl ? "Copy Share Link" : "Save First to Share"}
+            </button>
+            {/* NEW — save as template */}
+            <button style={s.secondaryBtn} onClick={() => { setTemplateName(jobName || ""); setShowSaveTemplateModal(true); }}>
+              📋 Save as Template
+            </button>
           </div>
+
+          {/* NEW — share link display */}
+          {shareUrl && (
+            <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 9, padding: "10px 14px", fontSize: "0.8rem", color: C.blue }}>
+              <strong>Customer approval link:</strong> Send this URL to your customer — they can approve or decline without logging in.
+              <div style={{ marginTop: 6, fontFamily: "monospace", fontSize: "0.75rem", wordBreak: "break-all", color: C.sky }}>
+                {shareUrl}
+              </div>
+            </div>
+          )}
+
+          {/* NEW — save as template modal (inline) */}
+          {showSaveTemplateModal && (
+            <div style={{ background: C.light, borderRadius: 10, padding: "16px", border: `1px solid ${C.border}` }}>
+              <div style={{ fontWeight: 600, marginBottom: 10, fontSize: "0.9rem" }}>Save as Template</div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <input
+                  style={{ ...s.input, flex: 1 }}
+                  placeholder="Template name (e.g. Standard Toilet Install)"
+                  value={templateName}
+                  onChange={e => setTemplateName(e.target.value)}
+                />
+                <button style={s.primaryBtn} onClick={handleSaveTemplate} disabled={savingTemplate}>
+                  {savingTemplate ? "Saving…" : "Save"}
+                </button>
+                <button style={s.secondaryBtn} onClick={() => setShowSaveTemplateModal(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ── JOB DETAILS (original) */}
+      {/* ── JOB DETAILS */}
       <Section title="Job Details" icon="📋">
         <Row>
           <Field label="Company Name">
@@ -1177,7 +1885,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
         </Row>
       </Section>
 
-      {/* ── ROUGH-IN (original, unchanged) */}
+      {/* ── ROUGH-IN */}
       {jobType === "Rough In" && (
         <>
           <Section title="Rough-In — Piping" icon="🔩">
@@ -1188,8 +1896,9 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
               <span style={{ flex: "0 0 90px" }}>Type</span>
               <span style={{ flex: "0 0 88px" }}>Size</span>
               <span style={{ flex: 1 }}>Length (ft)</span>
-              <span style={{ flex: 1 }}>$/ft</span>
-              <span style={{ flex: "0 0 78px", textAlign: "right" }}>Cost</span>
+              <span style={{ flex: 1 }}>$/ft (sell)</span>
+              <span style={{ flex: 1 }}>$/ft (cost)</span>
+              <span style={{ flex: "0 0 78px", textAlign: "right" }}>Revenue</span>
               <span style={{ flex: "0 0 32px" }}></span>
             </div>
             {pipes.map((p, i) => (
@@ -1202,12 +1911,14 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
                 </select>
                 <input style={{ ...s.input, flex: 1 }} type="number" min="0" placeholder="0" value={p.length || ""} onChange={(e) => updatePipe(i, "length", e.target.value)} />
                 <input style={{ ...s.input, flex: 1 }} type="number" min="0" step="0.01" value={p.pricePerFt} onChange={(e) => updatePipe(i, "pricePerFt", e.target.value)} />
+                {/* NEW — cost column */}
+                <input style={{ ...s.input, flex: 1, background: "#fffbeb" }} type="number" min="0" step="0.01" value={p.costPerFt || p.pricePerFt} onChange={(e) => updatePipe(i, "costPerFt", e.target.value)} />
                 <div style={{ ...s.fixtureLineTotal, flex: "0 0 78px" }}>${(Number(p.length) * Number(p.pricePerFt)).toFixed(2)}</div>
                 <button style={{ ...s.removeBtn, flex: "0 0 32px", opacity: pipes.length === 1 ? 0.3 : 1 }} onClick={() => removePipeRow(i)} disabled={pipes.length === 1}>✕</button>
               </div>
             ))}
             <button style={s.addBtn} onClick={addPipeRow}>+ Add Pipe</button>
-            <div style={s.subtotalRow}><span>Piping Subtotal</span><span style={s.subtotalVal}>${pipesTotal.toFixed(2)}</span></div>
+            <div style={s.subtotalRow}><span>Piping Subtotal (sell)</span><span style={s.subtotalVal}>${pipesTotal.toFixed(2)}</span></div>
           </Section>
 
           <Section title="Rough-In — Fittings" icon="🔧">
@@ -1219,7 +1930,8 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
               <span style={{ flex: "0 0 82px" }}>Material</span>
               <span style={{ flex: "0 0 78px" }}>Size</span>
               <span style={{ flex: "0 0 58px" }}>Qty</span>
-              <span style={{ flex: 1 }}>Unit Price ($)</span>
+              <span style={{ flex: 1 }}>Sell $</span>
+              <span style={{ flex: 1 }}>Cost $</span>
               <span style={{ flex: "0 0 75px", textAlign: "right" }}>Total</span>
             </div>
             {fittings.map((f, i) => (
@@ -1233,10 +1945,12 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
                 </select>
                 <input style={{ ...s.input, flex: "0 0 58px" }} type="number" min="0" placeholder="0" value={f.qty || ""} onChange={(e) => updateFitting(i, "qty", e.target.value)} />
                 <input style={{ ...s.input, flex: 1 }} type="number" min="0" step="0.01" value={f.unitPrice} onChange={(e) => updateFitting(i, "unitPrice", e.target.value)} />
+                {/* NEW — cost column */}
+                <input style={{ ...s.input, flex: 1, background: "#fffbeb" }} type="number" min="0" step="0.01" value={f.unitCost || f.unitPrice} onChange={(e) => updateFitting(i, "unitCost", e.target.value)} />
                 <div style={{ ...s.fixtureLineTotal, flex: "0 0 75px" }}>${(Number(f.qty) * Number(f.unitPrice)).toFixed(2)}</div>
               </div>
             ))}
-            <div style={s.subtotalRow}><span>Fittings Subtotal</span><span style={s.subtotalVal}>${fittingsTotal.toFixed(2)}</span></div>
+            <div style={s.subtotalRow}><span>Fittings Subtotal (sell)</span><span style={s.subtotalVal}>${fittingsTotal.toFixed(2)}</span></div>
           </Section>
 
           <Section title="Rough-In — Labour" icon="👷">
@@ -1244,7 +1958,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
               <Field label="Labour Cost ($)">
                 <input style={s.input} type="number" min="0" placeholder="0.00" value={roughLabour || ""} onChange={(e) => setRoughLabour(e.target.value)} />
               </Field>
-              <Field label="Total Rough-In Cost">
+              <Field label="Total Rough-In (sell)">
                 <div style={s.calcDisplay}>${roughInTotal.toFixed(2)}</div>
               </Field>
             </Row>
@@ -1252,7 +1966,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
         </>
       )}
 
-      {/* ── LABOUR (original, unchanged) */}
+      {/* ── LABOUR */}
       {jobType !== "Rough In" && (
         <Section title="Labour" icon="🔧">
           {jobType === "Fixture Install" ? (
@@ -1285,7 +1999,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
         </Section>
       )}
 
-      {/* ── MATERIALS (original, unchanged) */}
+      {/* ── MATERIALS */}
       {jobType !== "Rough In" && (
         <Section title="Materials" icon="🪛">
           <Row>
@@ -1305,7 +2019,29 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
         </Section>
       )}
 
-      {/* ── SUMMARY (original + profit row) */}
+      {/* NEW — Subcontractor / Helper Section */}
+      <Section title="Subcontractor / Helper Cost" icon="👥">
+        <Row>
+          <Field label="Subcontractor / Helper Cost ($)">
+            <input
+              style={s.input}
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={subContractorCost || ""}
+              onChange={e => setSubContractorCost(Number(e.target.value))}
+            />
+          </Field>
+          <Field label="">
+            <div style={{ ...s.calcDisplay, fontSize: "0.8rem", color: C.muted, padding: "10px 14px" }}>
+              This cost is tracked internally and reduces your profit. It does not appear on the customer's quote.
+            </div>
+          </Field>
+        </Row>
+      </Section>
+
+      {/* ── SUMMARY */}
       <div style={s.summaryCard}>
         <div style={s.summaryTitle}>Quote Summary</div>
         {jobType === "Rough In" ? (
@@ -1323,12 +2059,17 @@ function QuoteEditor({ user, quoteData, customers, quotes, onSaved, onConvertToI
             <div style={s.summaryLine}><span>Materials (incl. markup)</span><span>${materials.toFixed(2)}</span></div>
           </>
         )}
+        {Number(subContractorCost) > 0 && (
+          <div style={{ ...s.summaryLine, color: C.muted, fontStyle: "italic" }}>
+            <span>Subcontractor (internal cost)</span><span>−{fmtCurrency(subContractorCost)}</span>
+          </div>
+        )}
         <div style={s.summaryLine}><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
         <div style={{ ...s.summaryLine, color: C.sky }}><span>HST (13%)</span><span>${hst.toFixed(2)}</span></div>
         <div style={s.summaryDivider} />
         <div style={s.summaryTotal}><span>Total</span><span>${total.toFixed(2)}</span></div>
-        <div style={{ ...s.summaryLine, borderBottom: "none", color: profit >= 0 ? C.green : C.danger, fontWeight: 600 }}>
-          <span>Profit</span>
+        <div style={{ ...s.summaryLine, borderBottom: "none", color: profit >= 0 ? (marginWarning ? C.amber : C.green) : C.danger, fontWeight: 600 }}>
+          <span>Profit {marginWarning && profit > 0 ? "⚠ Low margin" : ""}</span>
           <span>{fmtCurrency(profit)} ({profitPct}%)</span>
         </div>
         <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
@@ -1353,8 +2094,14 @@ function QuoteRow({ q, custName, onClick, onDuplicate, showDuplicate }) {
   return (
     <div style={{ ...s.listRow, cursor: "pointer" }} onClick={onClick}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={s.listRowTitle}>{q.jobName || q.jobType || "Untitled"}</div>
-        <div style={s.listRowMeta}>{custName || q.clientName || "—"} · {fmtDate(q.createdAt)}</div>
+        <div style={s.listRowTitle}>
+          {q.quoteNumber && <span style={{ color: C.muted, fontWeight: 500, marginRight: 8, fontSize: "0.8rem" }}>{q.quoteNumber}</span>}
+          {q.jobName || q.jobType || "Untitled"}
+        </div>
+        <div style={s.listRowMeta}>
+          {custName || q.clientName || "—"} · {fmtDate(q.createdAt)}
+          {q.expiryDate && ` · Exp ${new Date(q.expiryDate).toLocaleDateString("en-CA")}`}
+        </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         <span style={{ ...s.statusBadge, ...(STATUS_STYLE[q.status] || STATUS_STYLE.Draft) }}>{q.status || "Draft"}</span>
@@ -1398,11 +2145,10 @@ function Field({ label, children }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STYLES — all original styles preserved + new ones appended
+// STYLES
 // ─────────────────────────────────────────────────────────────────────────────
 
 const s = {
-  // ── Original styles (unchanged) ──────────────────────────────────────────
   loginWrap: { minHeight: "100vh", background: "linear-gradient(135deg, #0d1f3c 0%, #1a4b8c 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", padding: 20 },
   loginCard: { background: "#ffffff", borderRadius: 20, padding: "48px 40px", maxWidth: 420, width: "100%", textAlign: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.25)" },
   loginIcon: { width: 64, height: 64, background: "#0d1f3c", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" },
@@ -1452,8 +2198,6 @@ const s = {
   summaryDivider: { margin: "8px 0" },
   summaryTotal: { display: "flex", justifyContent: "space-between", fontFamily: "'DM Serif Display', serif", fontSize: "1.5rem", color: "#0d1f3c", padding: "10px 0 20px" },
   pdfBtnFull: { display: "block", flex: 1, background: "#f5a623", color: "#0d1f3c", border: "none", borderRadius: 10, padding: "14px", fontSize: "1rem", fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(245,166,35,0.35)", fontFamily: "'DM Sans', sans-serif", textAlign: "center" },
-
-  // ── New styles ───────────────────────────────────────────────────────────
   nav: { display: "flex", gap: 4, flexWrap: "wrap" },
   navBtn: { background: "transparent", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: "0.85rem", fontWeight: 500, color: "#637592", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", whiteSpace: "nowrap" },
   navBtnActive: { background: "#f0f5fc", color: "#0d1f3c", fontWeight: 700 },
