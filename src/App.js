@@ -276,8 +276,9 @@ export default function App() {
   const [customers, setCustomers]           = useState([]);
   const [quotes, setQuotes]                 = useState([]);
   const [invoices, setInvoices]             = useState([]);
-  const [settings, setSettings]             = useState(DEFAULT_SETTINGS); // NEW
-  const [savedTemplates, setSavedTemplates] = useState([]); // NEW
+  const [settings, setSettings]             = useState(DEFAULT_SETTINGS);
+  const [savedTemplates, setSavedTemplates] = useState([]);
+  const [showMore, setShowMore]             = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
@@ -377,7 +378,6 @@ export default function App() {
   ];
 
   const overdueCount = invoices.filter(i => isOverdue(i) && i.status !== "Paid").length;
-  const [showMore, setShowMore] = useState(false);
 
   const navigate = (id) => {
     if (id === "quote") setEditingQuote({ _new: true });
