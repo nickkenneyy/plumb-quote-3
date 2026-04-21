@@ -357,22 +357,40 @@ export default function App() {
 
   if (!user) return <LoginScreen onLogin={handleLogin} />;
 
-  const navItems = [
-    { id: "dashboard",  label: "Dashboard",  icon: "⬛" },
+  // bottom tab nav — 5 primary items, "more" drawer for templates/settings
+  const bottomTabs = [
+    { id: "dashboard", label: "Home",     icon: "🏠" },
+    { id: "quote",     label: "New",      icon: "✚"  },
+    { id: "quotes",    label: "Quotes",   icon: "📄" },
+    { id: "invoices",  label: "Invoices", icon: "🧾" },
+    { id: "more",      label: "More",     icon: "☰"  },
+  ];
+
+  const desktopNavItems = [
+    { id: "dashboard",  label: "Dashboard",  icon: "🏠" },
     { id: "quote",      label: "New Quote",  icon: "✚"  },
     { id: "quotes",     label: "Quotes",     icon: "📄" },
     { id: "invoices",   label: "Invoices",   icon: "🧾" },
     { id: "customers",  label: "Customers",  icon: "👤" },
-    { id: "templates",  label: "Templates",  icon: "📋" }, // NEW
-    { id: "settings",   label: "Settings",   icon: "⚙️" }, // NEW
+    { id: "templates",  label: "Templates",  icon: "📋" },
+    { id: "settings",   label: "Settings",   icon: "⚙️" },
   ];
 
-  // NEW — overdue invoice count for badge
   const overdueCount = invoices.filter(i => isOverdue(i) && i.status !== "Paid").length;
+  const [showMore, setShowMore] = useState(false);
+
+  const navigate = (id) => {
+    if (id === "quote") setEditingQuote({ _new: true });
+    setView(id);
+    setShowMore(false);
+  };
+
+  const isActive = (id) => view === id || (id === "quote" && view === "quote");
 
   return (
     <div style={s.appWrap}>
-      <header style={s.header}>
+      {/* ── DESKTOP HEADER (hidden on mobile via CSS class) */}
+      <header style={s.header} className="desktop-header">
         <div style={s.headerLeft}>
           <div style={s.headerIcon}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -383,23 +401,11 @@ export default function App() {
           <span style={s.headerTitle}>Plumb<span style={{ color: C.sky }}>Quote</span> 3</span>
         </div>
         <nav style={s.nav}>
-          {navItems.map(n => (
-            <button
-              key={n.id}
-              style={view === n.id || (n.id === "quote" && view === "quote")
-                ? { ...s.navBtn, ...s.navBtnActive }
-                : s.navBtn}
-              onClick={() => {
-                if (n.id === "quote") setEditingQuote({ _new: true });
-                setView(n.id);
-              }}
-            >
+          {desktopNavItems.map(n => (
+            <button key={n.id} style={isActive(n.id) ? { ...s.navBtn, ...s.navBtnActive } : s.navBtn} onClick={() => navigate(n.id)}>
               <span style={{ marginRight: 5, fontSize: 14 }}>{n.icon}</span>{n.label}
-              {/* NEW — overdue badge on Invoices nav */}
               {n.id === "invoices" && overdueCount > 0 && (
-                <span style={{ marginLeft: 6, background: C.danger, color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: "0.7rem", fontWeight: 700 }}>
-                  {overdueCount}
-                </span>
+                <span style={{ marginLeft: 6, background: C.danger, color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: "0.7rem", fontWeight: 700 }}>{overdueCount}</span>
               )}
             </button>
           ))}
@@ -410,76 +416,107 @@ export default function App() {
         </div>
       </header>
 
+      {/* ── MOBILE HEADER (shown only on mobile) */}
+      <header style={s.mobileHeader} className="mobile-header">
+        <div style={s.headerLeft}>
+          <div style={s.headerIcon}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2C6 2 2 8 2 12s4 10 10 10 10-4 10-10S18 2 12 2z" opacity=".3" fill="white"/>
+              <path d="M8 12h8M12 8v8"/>
+            </svg>
+          </div>
+          <span style={s.headerTitle}>Plumb<span style={{ color: C.sky }}>Quote</span> 3</span>
+        </div>
+        <div style={s.headerRight}>
+          <div style={s.avatar}>{user.displayName?.[0] ?? "U"}</div>
+          <button style={s.logoutBtn} onClick={handleLogout}>Sign out</button>
+        </div>
+      </header>
+
+      {/* ── MORE DRAWER (mobile) */}
+      {showMore && (
+        <div style={s.moreDrawerOverlay} onClick={() => setShowMore(false)}>
+          <div style={s.moreDrawer} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid " + C.border, fontWeight: 700, color: C.navy, fontSize: "0.9rem" }}>More</div>
+            {[
+              { id: "customers", label: "Customers", icon: "👤" },
+              { id: "templates", label: "Templates", icon: "📋" },
+              { id: "settings",  label: "Settings",  icon: "⚙️" },
+            ].map(n => (
+              <button key={n.id} style={s.moreDrawerItem} onClick={() => navigate(n.id)}>
+                <span style={{ fontSize: 18, marginRight: 14 }}>{n.icon}</span>
+                <span style={{ fontSize: "1rem", color: C.navy }}>{n.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <main style={s.main}>
         {view === "dashboard" && (
-          <DashboardView
-            quotes={quotes}
-            invoices={invoices}
-            customers={customers}
-            onOpenQuote={openQuote}
-            onNewQuote={openNewQuote}
-          />
+          <DashboardView quotes={quotes} invoices={invoices} customers={customers} onOpenQuote={openQuote} onNewQuote={openNewQuote} />
         )}
         {view === "quote" && (
           <QuoteEditor
-            user={user}
-            quoteData={editingQuote}
-            customers={customers}
-            quotes={quotes}
-            settings={settings}
+            user={user} quoteData={editingQuote} customers={customers} quotes={quotes} settings={settings}
             onSaved={(q) => { setEditingQuote(q); setView("quotes"); }}
-            onConvertToInvoice={async (q) => {
-              await convertToInvoice(q, user.uid, settings);
-              setView("invoices");
-            }}
+            onConvertToInvoice={async (q) => { await convertToInvoice(q, user.uid, settings); setView("invoices"); }}
           />
         )}
         {view === "quotes" && (
-          <QuotesListView
-            quotes={quotes}
-            customers={customers}
-            onOpenQuote={openQuote}
+          <QuotesListView quotes={quotes} customers={customers} onOpenQuote={openQuote}
             onNewQuote={() => { setEditingQuote({ _new: true }); setView("quote"); }}
-            onDuplicate={async (q) => {
-              const dup = await duplicateQuote(q, user.uid);
-              openQuote(dup);
-            }}
+            onDuplicate={async (q) => { const dup = await duplicateQuote(q, user.uid); openQuote(dup); }}
           />
         )}
-        {view === "invoices" && (
-          <InvoicesListView
-            invoices={invoices}
-            customers={customers}
-            quotes={quotes}
-            user={user}
-          />
-        )}
-        {view === "customers" && (
-          <CustomersView
-            user={user}
-            customers={customers}
-            quotes={quotes}
-            invoices={invoices}
-            onNewQuote={openNewQuote}
-            onOpenQuote={openQuote}
-          />
-        )}
-        {/* NEW */}
-        {view === "templates" && (
-          <TemplatesView
-            user={user}
-            savedTemplates={savedTemplates}
-            onUseTemplate={(tpl) => openNewQuote(null, tpl)}
-          />
-        )}
-        {/* NEW */}
-        {view === "settings" && (
-          <SettingsView
-            user={user}
-            settings={settings}
-          />
-        )}
+        {view === "invoices" && <InvoicesListView invoices={invoices} customers={customers} quotes={quotes} user={user} />}
+        {view === "customers" && <CustomersView user={user} customers={customers} quotes={quotes} invoices={invoices} onNewQuote={openNewQuote} onOpenQuote={openQuote} />}
+        {view === "templates" && <TemplatesView user={user} savedTemplates={savedTemplates} onUseTemplate={(tpl) => openNewQuote(null, tpl)} />}
+        {view === "settings"  && <SettingsView user={user} settings={settings} />}
       </main>
+
+      {/* ── MOBILE BOTTOM TAB BAR */}
+      <nav style={s.bottomNav} className="mobile-bottom-nav">
+        {bottomTabs.map(n => {
+          const active = n.id === "more" ? showMore : isActive(n.id);
+          return (
+            <button
+              key={n.id}
+              style={{ ...s.bottomTab, ...(active ? s.bottomTabActive : {}) }}
+              onClick={() => {
+                if (n.id === "more") { setShowMore(v => !v); return; }
+                navigate(n.id);
+              }}
+            >
+              <span style={{ fontSize: 20, lineHeight: 1, display: "block", marginBottom: 3 }}>{n.icon}</span>
+              <span style={{ fontSize: "0.65rem", fontWeight: active ? 700 : 500, letterSpacing: "0.02em" }}>
+                {n.label}
+                {n.id === "invoices" && overdueCount > 0 && (
+                  <span style={{ marginLeft: 3, background: C.danger, color: "#fff", borderRadius: 8, padding: "0 5px", fontSize: "0.6rem", fontWeight: 700 }}>{overdueCount}</span>
+                )}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* ── GLOBAL MOBILE-RESPONSIVE STYLES */}
+      <style>{`
+        @media (max-width: 640px) {
+          .desktop-header { display: none !important; }
+          .mobile-header  { display: flex !important; }
+          .mobile-bottom-nav { display: flex !important; }
+        }
+        @media (min-width: 641px) {
+          .desktop-header { display: flex !important; }
+          .mobile-header  { display: none !important; }
+          .mobile-bottom-nav { display: none !important; }
+        }
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        input, select, textarea { font-size: 16px !important; }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { opacity: 1; }
+      `}</style>
     </div>
   );
 }
@@ -654,7 +691,7 @@ function DashboardView({ quotes, invoices, customers, onOpenQuote, onNewQuote })
       )}
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
         {stats.map(st => (
           <div key={st.label} style={s.statCard}>
             <div style={{ fontSize: "0.72rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: C.muted, marginBottom: 8 }}>{st.label}</div>
@@ -1890,67 +1927,83 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
         <>
           <Section title="Rough-In — Piping" icon="🔩">
             <div style={s.roughDisclaimer}>
-              ⚠ Prices auto-fill from Ontario supply baselines (Home Depot CA, Wolseley, Noble Trade). All values are editable — adjust to your actual costs before submitting.
-            </div>
-            <div style={s.roughHeader}>
-              <span style={{ flex: "0 0 90px" }}>Type</span>
-              <span style={{ flex: "0 0 88px" }}>Size</span>
-              <span style={{ flex: 1 }}>Length (ft)</span>
-              <span style={{ flex: 1 }}>$/ft (sell)</span>
-              <span style={{ flex: 1 }}>$/ft (cost)</span>
-              <span style={{ flex: "0 0 78px", textAlign: "right" }}>Revenue</span>
-              <span style={{ flex: "0 0 32px" }}></span>
+              ⚠ Prices auto-fill from Ontario supply baselines. All values are editable.
             </div>
             {pipes.map((p, i) => (
-              <div key={i} style={s.roughRow}>
-                <select style={{ ...s.input, flex: "0 0 90px" }} value={p.type} onChange={(e) => updatePipe(i, "type", e.target.value)}>
-                  {Object.keys(PIPE_PRICING).map(t => <option key={t}>{t}</option>)}
-                </select>
-                <select style={{ ...s.input, flex: "0 0 88px" }} value={p.size} onChange={(e) => updatePipe(i, "size", e.target.value)}>
-                  {PIPE_SIZES.map(sz => <option key={sz}>{sz}</option>)}
-                </select>
-                <input style={{ ...s.input, flex: 1 }} type="number" min="0" placeholder="0" value={p.length || ""} onChange={(e) => updatePipe(i, "length", e.target.value)} />
-                <input style={{ ...s.input, flex: 1 }} type="number" min="0" step="0.01" value={p.pricePerFt} onChange={(e) => updatePipe(i, "pricePerFt", e.target.value)} />
-                {/* NEW — cost column */}
-                <input style={{ ...s.input, flex: 1, background: "#fffbeb" }} type="number" min="0" step="0.01" value={p.costPerFt || p.pricePerFt} onChange={(e) => updatePipe(i, "costPerFt", e.target.value)} />
-                <div style={{ ...s.fixtureLineTotal, flex: "0 0 78px" }}>${(Number(p.length) * Number(p.pricePerFt)).toFixed(2)}</div>
-                <button style={{ ...s.removeBtn, flex: "0 0 32px", opacity: pipes.length === 1 ? 0.3 : 1 }} onClick={() => removePipeRow(i)} disabled={pipes.length === 1}>✕</button>
+              <div key={i} style={s.roughCard}>
+                <div style={s.roughCardHeader}>
+                  <div style={{ display: "flex", gap: 8, flex: 1, flexWrap: "wrap" }}>
+                    <select style={{ ...s.input, flex: "1 1 90px", minWidth: 80 }} value={p.type} onChange={(e) => updatePipe(i, "type", e.target.value)}>
+                      {Object.keys(PIPE_PRICING).map(t => <option key={t}>{t}</option>)}
+                    </select>
+                    <select style={{ ...s.input, flex: "1 1 80px", minWidth: 70 }} value={p.size} onChange={(e) => updatePipe(i, "size", e.target.value)}>
+                      {PIPE_SIZES.map(sz => <option key={sz}>{sz}</option>)}
+                    </select>
+                  </div>
+                  <button style={{ ...s.removeBtn, flexShrink: 0, opacity: pipes.length === 1 ? 0.3 : 1, minWidth: 36, minHeight: 36 }} onClick={() => removePipeRow(i)} disabled={pipes.length === 1}>✕</button>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                  <div>
+                    <div style={s.roughFieldLabel}>Length (ft)</div>
+                    <input style={s.input} type="number" min="0" placeholder="0" value={p.length || ""} onChange={(e) => updatePipe(i, "length", e.target.value)} />
+                  </div>
+                  <div>
+                    <div style={s.roughFieldLabel}>$/ft (sell)</div>
+                    <input style={s.input} type="number" min="0" step="0.01" value={p.pricePerFt} onChange={(e) => updatePipe(i, "pricePerFt", e.target.value)} />
+                  </div>
+                  <div>
+                    <div style={s.roughFieldLabel}>$/ft (cost)</div>
+                    <input style={{ ...s.input, background: "#fffbeb" }} type="number" min="0" step="0.01" value={p.costPerFt || p.pricePerFt} onChange={(e) => updatePipe(i, "costPerFt", e.target.value)} />
+                  </div>
+                </div>
+                <div style={s.roughCardTotal}>
+                  Revenue: <strong>${(Number(p.length) * Number(p.pricePerFt)).toFixed(2)}</strong>
+                </div>
               </div>
             ))}
             <button style={s.addBtn} onClick={addPipeRow}>+ Add Pipe</button>
-            <div style={s.subtotalRow}><span>Piping Subtotal (sell)</span><span style={s.subtotalVal}>${pipesTotal.toFixed(2)}</span></div>
+            <div style={s.subtotalRow}><span>Piping Subtotal</span><span style={s.subtotalVal}>${pipesTotal.toFixed(2)}</span></div>
           </Section>
 
           <Section title="Rough-In — Fittings" icon="🔧">
             <div style={s.roughDisclaimer}>
-              ⚠ Unit prices reflect material type — Copper fittings are significantly higher than PVC/ABS. Prices auto-update when material or size changes.
-            </div>
-            <div style={s.roughHeader}>
-              <span style={{ flex: "0 0 95px" }}>Fitting</span>
-              <span style={{ flex: "0 0 82px" }}>Material</span>
-              <span style={{ flex: "0 0 78px" }}>Size</span>
-              <span style={{ flex: "0 0 58px" }}>Qty</span>
-              <span style={{ flex: 1 }}>Sell $</span>
-              <span style={{ flex: 1 }}>Cost $</span>
-              <span style={{ flex: "0 0 75px", textAlign: "right" }}>Total</span>
+              ⚠ Copper fittings are significantly higher than PVC/ABS. Prices auto-update on material/size change.
             </div>
             {fittings.map((f, i) => (
-              <div key={i} style={s.roughRow}>
-                <div style={{ ...s.roughTypeTag, flex: "0 0 95px", fontSize: "0.82rem" }}>{f.label}</div>
-                <select style={{ ...s.input, flex: "0 0 82px" }} value={f.material} onChange={(e) => updateFitting(i, "material", e.target.value)}>
-                  {Object.keys(FITTING_PRICING).map(m => <option key={m}>{m}</option>)}
-                </select>
-                <select style={{ ...s.input, flex: "0 0 78px" }} value={f.size} onChange={(e) => updateFitting(i, "size", e.target.value)}>
-                  {FITTING_SIZES.map(sz => <option key={sz}>{sz}</option>)}
-                </select>
-                <input style={{ ...s.input, flex: "0 0 58px" }} type="number" min="0" placeholder="0" value={f.qty || ""} onChange={(e) => updateFitting(i, "qty", e.target.value)} />
-                <input style={{ ...s.input, flex: 1 }} type="number" min="0" step="0.01" value={f.unitPrice} onChange={(e) => updateFitting(i, "unitPrice", e.target.value)} />
-                {/* NEW — cost column */}
-                <input style={{ ...s.input, flex: 1, background: "#fffbeb" }} type="number" min="0" step="0.01" value={f.unitCost || f.unitPrice} onChange={(e) => updateFitting(i, "unitCost", e.target.value)} />
-                <div style={{ ...s.fixtureLineTotal, flex: "0 0 75px" }}>${(Number(f.qty) * Number(f.unitPrice)).toFixed(2)}</div>
+              <div key={i} style={s.roughCard}>
+                <div style={s.roughCardHeader}>
+                  <div style={{ ...s.roughTypeTag, flex: "none" }}>{f.label}</div>
+                  <div style={{ display: "flex", gap: 8, flex: 1, flexWrap: "wrap" }}>
+                    <select style={{ ...s.input, flex: "1 1 80px", minWidth: 70 }} value={f.material} onChange={(e) => updateFitting(i, "material", e.target.value)}>
+                      {Object.keys(FITTING_PRICING).map(m => <option key={m}>{m}</option>)}
+                    </select>
+                    <select style={{ ...s.input, flex: "1 1 70px", minWidth: 65 }} value={f.size} onChange={(e) => updateFitting(i, "size", e.target.value)}>
+                      {FITTING_SIZES.map(sz => <option key={sz}>{sz}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                  <div>
+                    <div style={s.roughFieldLabel}>Qty</div>
+                    <input style={s.input} type="number" min="0" placeholder="0" value={f.qty || ""} onChange={(e) => updateFitting(i, "qty", e.target.value)} />
+                  </div>
+                  <div>
+                    <div style={s.roughFieldLabel}>Sell $</div>
+                    <input style={s.input} type="number" min="0" step="0.01" value={f.unitPrice} onChange={(e) => updateFitting(i, "unitPrice", e.target.value)} />
+                  </div>
+                  <div>
+                    <div style={s.roughFieldLabel}>Cost $</div>
+                    <input style={{ ...s.input, background: "#fffbeb" }} type="number" min="0" step="0.01" value={f.unitCost || f.unitPrice} onChange={(e) => updateFitting(i, "unitCost", e.target.value)} />
+                  </div>
+                </div>
+                {Number(f.qty) > 0 && (
+                  <div style={s.roughCardTotal}>
+                    Total: <strong>${(Number(f.qty) * Number(f.unitPrice)).toFixed(2)}</strong>
+                  </div>
+                )}
               </div>
             ))}
-            <div style={s.subtotalRow}><span>Fittings Subtotal (sell)</span><span style={s.subtotalVal}>${fittingsTotal.toFixed(2)}</span></div>
+            <div style={s.subtotalRow}><span>Fittings Subtotal</span><span style={s.subtotalVal}>${fittingsTotal.toFixed(2)}</span></div>
           </Section>
 
           <Section title="Rough-In — Labour" icon="👷">
@@ -1972,12 +2025,27 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
           {jobType === "Fixture Install" ? (
             <>
               {fixtures.map((f, i) => (
-                <div key={i} style={s.fixtureRow}>
-                  <input style={{ ...s.input, flex: 2 }} placeholder="Fixture name (e.g. Toilet)" value={f.name} onChange={(e) => updateFixture(i, "name", e.target.value)} />
-                  <input style={{ ...s.input, flex: 1 }} type="number" placeholder="Labour $" value={f.labour} onChange={(e) => updateFixture(i, "labour", e.target.value)} />
-                  <input style={{ ...s.input, width: 70, flex: "none" }} type="number" placeholder="Qty" value={f.qty} onChange={(e) => updateFixture(i, "qty", e.target.value)} />
-                  <div style={s.fixtureLineTotal}>${(Number(f.labour) * Number(f.qty)).toFixed(2)}</div>
-                  {fixtures.length > 1 && <button style={s.removeBtn} onClick={() => removeFixture(i)}>✕</button>}
+                <div key={i} style={s.roughCard}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input style={{ ...s.input, flex: 1 }} placeholder="Fixture (e.g. Toilet)" value={f.name} onChange={(e) => updateFixture(i, "name", e.target.value)} />
+                    {fixtures.length > 1 && (
+                      <button style={{ ...s.removeBtn, flexShrink: 0, minWidth: 36, minHeight: 36 }} onClick={() => removeFixture(i)}>✕</button>
+                    )}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, alignItems: "end" }}>
+                    <div>
+                      <div style={s.roughFieldLabel}>Labour $</div>
+                      <input style={s.input} type="number" placeholder="0" value={f.labour} onChange={(e) => updateFixture(i, "labour", e.target.value)} />
+                    </div>
+                    <div>
+                      <div style={s.roughFieldLabel}>Qty</div>
+                      <input style={s.input} type="number" placeholder="1" value={f.qty} onChange={(e) => updateFixture(i, "qty", e.target.value)} />
+                    </div>
+                    <div>
+                      <div style={s.roughFieldLabel}>Total</div>
+                      <div style={{ ...s.calcDisplay, fontSize: "0.9rem" }}>${(Number(f.labour) * Number(f.qty)).toFixed(2)}</div>
+                    </div>
+                  </div>
                 </div>
               ))}
               <button style={s.addBtn} onClick={addFixture}>+ Add Fixture</button>
@@ -2149,70 +2217,123 @@ function Field({ label, children }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const s = {
+  // ── Login
   loginWrap: { minHeight: "100vh", background: "linear-gradient(135deg, #0d1f3c 0%, #1a4b8c 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", padding: 20 },
-  loginCard: { background: "#ffffff", borderRadius: 20, padding: "48px 40px", maxWidth: 420, width: "100%", textAlign: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.25)" },
+  loginCard: { background: "#ffffff", borderRadius: 20, padding: "40px 28px", maxWidth: 420, width: "100%", textAlign: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.25)" },
   loginIcon: { width: 64, height: 64, background: "#0d1f3c", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" },
   loginTitle: { fontFamily: "'DM Serif Display', serif", fontSize: "2rem", color: "#0d1f3c", margin: "0 0 8px" },
   loginSub: { fontSize: "0.95rem", color: "#637592", margin: "0 0 32px" },
-  googleBtn: { display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: "14px 20px", background: "#ffffff", border: "1.5px solid #d4e1f5", borderRadius: 10, fontSize: "0.95rem", fontWeight: 600, color: "#2a3a52", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", fontFamily: "'DM Sans', sans-serif" },
+  googleBtn: { display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: "16px 20px", background: "#ffffff", border: "1.5px solid #d4e1f5", borderRadius: 12, fontSize: "1rem", fontWeight: 600, color: "#2a3a52", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", fontFamily: "'DM Sans', sans-serif" },
   loginFooter: { marginTop: 24, fontSize: "0.8rem", color: "#637592" },
+
+  // ── App shell
   appWrap: { minHeight: "100vh", background: "#f0f5fc", fontFamily: "'DM Sans', sans-serif", color: "#2a3a52" },
-  header: { background: "#ffffff", borderBottom: "1px solid #d4e1f5", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 12px rgba(13,31,60,0.07)", gap: 12, flexWrap: "wrap" },
+
+  // ── Desktop header
+  header: { background: "#ffffff", borderBottom: "1px solid #d4e1f5", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 12px rgba(13,31,60,0.07)", gap: 12 },
+
+  // ── Mobile header
+  mobileHeader: { background: "#ffffff", borderBottom: "1px solid #d4e1f5", padding: "0 16px", height: 56, display: "none", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 8px rgba(13,31,60,0.07)" },
+
   headerLeft: { display: "flex", alignItems: "center", gap: 10 },
-  headerIcon: { width: 36, height: 36, background: "#0d1f3c", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" },
+  headerIcon: { width: 34, height: 34, background: "#0d1f3c", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
   headerTitle: { fontFamily: "'DM Serif Display', serif", fontSize: "1.15rem", color: "#0d1f3c" },
-  headerRight: { display: "flex", alignItems: "center", gap: 12 },
-  avatar: { width: 34, height: 34, borderRadius: "50%", background: "#0d1f3c", color: "#f5a623", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Serif Display', serif", fontSize: "1rem" },
-  logoutBtn: { background: "transparent", border: "1px solid #d4e1f5", borderRadius: 8, padding: "6px 14px", fontSize: "0.82rem", color: "#637592", cursor: "pointer", fontFamily: "'DM Sans', sans-serif" },
-  main: { maxWidth: 900, margin: "0 auto", padding: "28px 20px 60px", display: "flex", flexDirection: "column", gap: 20 },
-  totalBanner: { background: "#0d1f3c", borderRadius: 16, padding: "24px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16, boxShadow: "0 8px 32px rgba(13,31,60,0.18)" },
-  totalLabel: { fontSize: "0.78rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: 4 },
-  totalAmount: { fontFamily: "'DM Serif Display', serif", fontSize: "2.6rem", color: "#ffffff", lineHeight: 1 },
-  pdfBtn: { background: "#f5a623", color: "#0d1f3c", border: "none", borderRadius: 10, padding: "13px 24px", fontSize: "0.95rem", fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(245,166,35,0.4)", fontFamily: "'DM Sans', sans-serif" },
-  pdfBtnSuccess: { background: "#22c55e", boxShadow: "0 4px 16px rgba(34,197,94,0.4)" },
-  section: { background: "#ffffff", borderRadius: 16, border: "1px solid #d4e1f5", overflow: "hidden", boxShadow: "0 2px 12px rgba(13,31,60,0.04)" },
-  sectionHeader: { display: "flex", alignItems: "center", gap: 10, padding: "16px 24px", borderBottom: "1px solid #d4e1f5", background: "#f0f5fc" },
-  sectionIcon: { fontSize: "1rem" },
-  sectionTitle: { fontWeight: 600, fontSize: "0.88rem", letterSpacing: "0.05em", textTransform: "uppercase", color: "#0d1f3c" },
-  sectionBody: { padding: "20px 24px", display: "flex", flexDirection: "column", gap: 12 },
-  row: { display: "flex", gap: 16, flexWrap: "wrap" },
-  field: { display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 140 },
-  label: { fontSize: "0.78rem", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "#637592" },
-  input: { padding: "10px 12px", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "0.9rem", color: "#2a3a52", background: "#ffffff", outline: "none", fontFamily: "'DM Sans', sans-serif", width: "100%", boxSizing: "border-box" },
-  fileLabel: { display: "block", padding: "10px 14px", border: "1.5px dashed #d4e1f5", borderRadius: 9, fontSize: "0.9rem", color: "#2e7dd1", cursor: "pointer", textAlign: "center", fontWeight: 500, background: "#f0f5fc" },
-  textarea: { padding: "10px 14px", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "0.9rem", color: "#2a3a52", background: "#ffffff", outline: "none", fontFamily: "'DM Sans', sans-serif", width: "100%", minHeight: 80, resize: "vertical", boxSizing: "border-box" },
-  calcDisplay: { padding: "10px 14px", background: "#f0f5fc", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "1rem", fontWeight: 600, color: "#0d1f3c" },
-  fixtureRow: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" },
-  fixtureLineTotal: { minWidth: 72, padding: "10px 0", fontWeight: 600, color: "#2e7dd1", fontSize: "0.9rem", textAlign: "right" },
-  removeBtn: { background: "transparent", border: "1px solid #d4e1f5", borderRadius: 6, color: "#637592", cursor: "pointer", padding: "6px 9px", fontSize: "0.78rem", lineHeight: 1 },
-  addBtn: { background: "#f0f5fc", border: "1.5px dashed #d4e1f5", borderRadius: 9, color: "#2e7dd1", cursor: "pointer", padding: "10px 16px", fontSize: "0.88rem", fontWeight: 600, fontFamily: "'DM Sans', sans-serif", alignSelf: "flex-start" },
-  subtotalRow: { display: "flex", justifyContent: "space-between", padding: "10px 14px", background: "#f0f5fc", borderRadius: 9, fontSize: "0.9rem", color: "#637592", marginTop: 4 },
-  subtotalVal: { fontWeight: 600, color: "#0d1f3c" },
-  roughDisclaimer: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 9, padding: "10px 14px", fontSize: "0.8rem", color: "#92400e", lineHeight: 1.5 },
-  roughHeader: { display: "flex", gap: 8, alignItems: "center", padding: "0 2px", fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: "#637592" },
-  roughRow: { display: "flex", gap: 8, alignItems: "center" },
-  roughTypeTag: { padding: "10px 10px", background: "#f0f5fc", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "0.85rem", fontWeight: 600, color: "#0d1f3c", whiteSpace: "nowrap" },
-  summaryCard: { background: "#ffffff", border: "1px solid #d4e1f5", borderRadius: 16, padding: "24px", boxShadow: "0 2px 12px rgba(13,31,60,0.04)" },
-  summaryTitle: { fontFamily: "'DM Serif Display', serif", fontSize: "1.3rem", color: "#0d1f3c", marginBottom: 16 },
-  summaryLine: { display: "flex", justifyContent: "space-between", fontSize: "0.95rem", color: "#637592", padding: "8px 0", borderBottom: "1px solid #d4e1f5" },
-  summaryDivider: { margin: "8px 0" },
-  summaryTotal: { display: "flex", justifyContent: "space-between", fontFamily: "'DM Serif Display', serif", fontSize: "1.5rem", color: "#0d1f3c", padding: "10px 0 20px" },
-  pdfBtnFull: { display: "block", flex: 1, background: "#f5a623", color: "#0d1f3c", border: "none", borderRadius: 10, padding: "14px", fontSize: "1rem", fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(245,166,35,0.35)", fontFamily: "'DM Sans', sans-serif", textAlign: "center" },
-  nav: { display: "flex", gap: 4, flexWrap: "wrap" },
-  navBtn: { background: "transparent", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: "0.85rem", fontWeight: 500, color: "#637592", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", whiteSpace: "nowrap" },
+  headerRight: { display: "flex", alignItems: "center", gap: 10 },
+  avatar: { width: 34, height: 34, borderRadius: "50%", background: "#0d1f3c", color: "#f5a623", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Serif Display', serif", fontSize: "1rem", flexShrink: 0 },
+  logoutBtn: { background: "transparent", border: "1px solid #d4e1f5", borderRadius: 8, padding: "6px 12px", fontSize: "0.8rem", color: "#637592", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" },
+
+  // ── Desktop nav
+  nav: { display: "flex", gap: 4, flexWrap: "nowrap", overflow: "hidden" },
+  navBtn: { background: "transparent", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: "0.82rem", fontWeight: 500, color: "#637592", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", whiteSpace: "nowrap" },
   navBtnActive: { background: "#f0f5fc", color: "#0d1f3c", fontWeight: 700 },
-  pageHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 },
-  pageTitle: { fontFamily: "'DM Serif Display', serif", fontSize: "1.6rem", color: "#0d1f3c" },
-  primaryBtn: { background: "#0d1f3c", color: "#ffffff", border: "none", borderRadius: 9, padding: "10px 18px", fontSize: "0.88rem", fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" },
-  secondaryBtn: { background: "#f0f5fc", color: "#0d1f3c", border: "1px solid #d4e1f5", borderRadius: 9, padding: "10px 16px", fontSize: "0.88rem", fontWeight: 500, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" },
-  dangerBtn: { background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", borderRadius: 9, padding: "10px 16px", fontSize: "0.88rem", fontWeight: 500, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" },
-  filterBtn: { background: "#f0f5fc", color: "#637592", border: "1px solid #d4e1f5", borderRadius: 20, padding: "6px 14px", fontSize: "0.82rem", fontWeight: 500, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" },
+
+  // ── Mobile bottom tab bar
+  bottomNav: { display: "none", position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200, background: "#ffffff", borderTop: "1px solid #d4e1f5", paddingBottom: "env(safe-area-inset-bottom, 0px)", boxShadow: "0 -2px 16px rgba(13,31,60,0.08)" },
+  bottomTab: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 4px 8px", background: "transparent", border: "none", cursor: "pointer", color: "#637592", fontFamily: "'DM Sans', sans-serif", minHeight: 56 },
+  bottomTabActive: { color: "#0d1f3c" },
+
+  // ── More drawer
+  moreDrawerOverlay: { position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.35)" },
+  moreDrawer: { position: "absolute", bottom: 0, left: 0, right: 0, background: "#fff", borderRadius: "20px 20px 0 0", paddingBottom: "env(safe-area-inset-bottom, 0px)" },
+  moreDrawerItem: { display: "flex", alignItems: "center", width: "100%", padding: "16px 20px", background: "transparent", border: "none", borderBottom: "1px solid #f0f5fc", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", textAlign: "left" },
+
+  // ── Main content
+  main: { maxWidth: 900, margin: "0 auto", padding: "20px 16px 100px", display: "flex", flexDirection: "column", gap: 16 },
+
+  // ── Total banner
+  totalBanner: { background: "#0d1f3c", borderRadius: 16, padding: "20px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14, boxShadow: "0 8px 32px rgba(13,31,60,0.18)" },
+  totalLabel: { fontSize: "0.72rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: 4 },
+  totalAmount: { fontFamily: "'DM Serif Display', serif", fontSize: "2.4rem", color: "#ffffff", lineHeight: 1 },
+  pdfBtn: { background: "#f5a623", color: "#0d1f3c", border: "none", borderRadius: 10, padding: "13px 20px", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(245,166,35,0.4)", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" },
+  pdfBtnSuccess: { background: "#22c55e", boxShadow: "0 4px 16px rgba(34,197,94,0.4)" },
+
+  // ── Sections
+  section: { background: "#ffffff", borderRadius: 16, border: "1px solid #d4e1f5", overflow: "hidden", boxShadow: "0 2px 12px rgba(13,31,60,0.04)" },
+  sectionHeader: { display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", borderBottom: "1px solid #d4e1f5", background: "#f0f5fc" },
+  sectionIcon: { fontSize: "1rem" },
+  sectionTitle: { fontWeight: 600, fontSize: "0.85rem", letterSpacing: "0.05em", textTransform: "uppercase", color: "#0d1f3c" },
+  sectionBody: { padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12 },
+
+  // ── Form layout
+  row: { display: "flex", gap: 12, flexWrap: "wrap" },
+  field: { display: "flex", flexDirection: "column", gap: 5, flex: 1, minWidth: 130 },
+  label: { fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "#637592" },
+
+  // ── Inputs — 44px min touch target, 16px font prevents iOS zoom
+  input: { padding: "12px 12px", border: "1.5px solid #d4e1f5", borderRadius: 10, fontSize: "16px", color: "#2a3a52", background: "#ffffff", outline: "none", fontFamily: "'DM Sans', sans-serif", width: "100%", boxSizing: "border-box", minHeight: 44, WebkitAppearance: "none" },
+  fileLabel: { display: "block", padding: "12px 14px", border: "1.5px dashed #d4e1f5", borderRadius: 10, fontSize: "0.9rem", color: "#2e7dd1", cursor: "pointer", textAlign: "center", fontWeight: 500, background: "#f0f5fc", minHeight: 44 },
+  textarea: { padding: "12px 14px", border: "1.5px solid #d4e1f5", borderRadius: 10, fontSize: "16px", color: "#2a3a52", background: "#ffffff", outline: "none", fontFamily: "'DM Sans', sans-serif", width: "100%", minHeight: 80, resize: "vertical", boxSizing: "border-box" },
+  calcDisplay: { padding: "12px 14px", background: "#f0f5fc", border: "1.5px solid #d4e1f5", borderRadius: 10, fontSize: "1rem", fontWeight: 600, color: "#0d1f3c", minHeight: 44 },
+
+  // ── Rough-in mobile card layout (replaces horizontal rows)
+  roughCard: { background: "#f8fafd", border: "1px solid #d4e1f5", borderRadius: 12, padding: "12px", display: "flex", flexDirection: "column", gap: 10 },
+  roughCardHeader: { display: "flex", gap: 8, alignItems: "center" },
+  roughFieldLabel: { fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "#637592", marginBottom: 4 },
+  roughCardTotal: { fontSize: "0.88rem", color: "#637592", paddingTop: 4, borderTop: "1px solid #e8eef8" },
+  roughDisclaimer: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 9, padding: "10px 14px", fontSize: "0.8rem", color: "#92400e", lineHeight: 1.5 },
+  roughHeader: { display: "none" }, // hidden — replaced by card layout
+  roughRow: { display: "flex", gap: 8, alignItems: "center" }, // kept for compat
+  roughTypeTag: { padding: "8px 10px", background: "#f0f5fc", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "0.82rem", fontWeight: 600, color: "#0d1f3c", whiteSpace: "nowrap" },
+
+  // ── Fixture rows
+  fixtureRow: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" },
+  fixtureLineTotal: { minWidth: 72, padding: "10px 0", fontWeight: 600, color: "#2e7dd1", fontSize: "0.9rem", textAlign: "right" },
+
+  // ── Buttons — all 44px+ touch targets
+  removeBtn: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, color: "#dc2626", cursor: "pointer", padding: "8px 10px", fontSize: "0.82rem", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" },
+  addBtn: { background: "#f0f5fc", border: "1.5px dashed #d4e1f5", borderRadius: 10, color: "#2e7dd1", cursor: "pointer", padding: "12px 16px", fontSize: "0.9rem", fontWeight: 600, fontFamily: "'DM Sans', sans-serif", alignSelf: "flex-start", minHeight: 44 },
+  subtotalRow: { display: "flex", justifyContent: "space-between", padding: "12px 14px", background: "#f0f5fc", borderRadius: 10, fontSize: "0.9rem", color: "#637592", marginTop: 4 },
+  subtotalVal: { fontWeight: 700, color: "#0d1f3c" },
+
+  // ── Summary card
+  summaryCard: { background: "#ffffff", border: "1px solid #d4e1f5", borderRadius: 16, padding: "20px 18px", boxShadow: "0 2px 12px rgba(13,31,60,0.04)" },
+  summaryTitle: { fontFamily: "'DM Serif Display', serif", fontSize: "1.3rem", color: "#0d1f3c", marginBottom: 16 },
+  summaryLine: { display: "flex", justifyContent: "space-between", fontSize: "0.95rem", color: "#637592", padding: "9px 0", borderBottom: "1px solid #d4e1f5" },
+  summaryDivider: { margin: "6px 0" },
+  summaryTotal: { display: "flex", justifyContent: "space-between", fontFamily: "'DM Serif Display', serif", fontSize: "1.5rem", color: "#0d1f3c", padding: "10px 0 16px" },
+  pdfBtnFull: { display: "block", flex: 1, background: "#f5a623", color: "#0d1f3c", border: "none", borderRadius: 12, padding: "16px", fontSize: "1rem", fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(245,166,35,0.35)", fontFamily: "'DM Sans', sans-serif", textAlign: "center", minHeight: 52 },
+
+  // ── Page layout
+  pageHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 },
+  pageTitle: { fontFamily: "'DM Serif Display', serif", fontSize: "1.5rem", color: "#0d1f3c" },
+
+  // ── Buttons
+  primaryBtn: { background: "#0d1f3c", color: "#ffffff", border: "none", borderRadius: 10, padding: "12px 18px", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap", minHeight: 44 },
+  secondaryBtn: { background: "#f0f5fc", color: "#0d1f3c", border: "1px solid #d4e1f5", borderRadius: 10, padding: "12px 16px", fontSize: "0.9rem", fontWeight: 500, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap", minHeight: 44 },
+  dangerBtn: { background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", borderRadius: 10, padding: "12px 16px", fontSize: "0.9rem", fontWeight: 500, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap", minHeight: 44 },
+  filterBtn: { background: "#f0f5fc", color: "#637592", border: "1px solid #d4e1f5", borderRadius: 20, padding: "8px 14px", fontSize: "0.82rem", fontWeight: 500, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", minHeight: 36 },
   filterBtnActive: { background: "#0d1f3c", color: "#ffffff", border: "1px solid #0d1f3c" },
-  listRow: { display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderRadius: 12, border: "1px solid #d4e1f5", background: "#ffffff", marginBottom: 2, flexWrap: "wrap" },
+
+  // ── List rows
+  listRow: { display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 12, border: "1px solid #d4e1f5", background: "#ffffff", marginBottom: 4, flexWrap: "wrap" },
   listRowTitle: { fontWeight: 600, color: "#0d1f3c", fontSize: "0.95rem" },
   listRowMeta: { fontSize: "0.78rem", color: "#637592", marginTop: 2 },
-  statusBadge: { padding: "3px 10px", borderRadius: 20, fontSize: "0.75rem", fontWeight: 600, whiteSpace: "nowrap" },
-  statCard: { background: "#ffffff", border: "1px solid #d4e1f5", borderRadius: 14, padding: "18px 20px", boxShadow: "0 2px 8px rgba(13,31,60,0.04)" },
-  detailLine: { display: "flex", gap: 12, fontSize: "0.9rem", alignItems: "flex-start" },
-  detailKey: { minWidth: 70, fontWeight: 600, color: "#637592", fontSize: "0.82rem", textTransform: "uppercase", letterSpacing: "0.04em", paddingTop: 1 },
+  statusBadge: { padding: "4px 10px", borderRadius: 20, fontSize: "0.74rem", fontWeight: 600, whiteSpace: "nowrap" },
+
+  // ── Stat cards
+  statCard: { background: "#ffffff", border: "1px solid #d4e1f5", borderRadius: 14, padding: "16px 16px", boxShadow: "0 2px 8px rgba(13,31,60,0.04)" },
+
+  // ── Customer detail
+  detailLine: { display: "flex", gap: 10, fontSize: "0.9rem", alignItems: "flex-start" },
+  detailKey: { minWidth: 65, fontWeight: 600, color: "#637592", fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.04em", paddingTop: 2, flexShrink: 0 },
 };
