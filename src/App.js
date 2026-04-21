@@ -266,6 +266,95 @@ const DEFAULT_SETTINGS = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PROFIT FIX // NEW CALCULATION ENGINE
+// Central function — used everywhere: QuoteEditor, Dashboard, CSV exports.
+//
+// RULES (enforced here, nowhere else):
+//   material_cost   = what YOU paid for materials (cost price, no markup)
+//   material_revenue = what the CUSTOMER pays for materials (cost × markup)
+//   labour_revenue  = what the CUSTOMER pays for labour (hours × rate, or fixture totals)
+//   total_price     = material_revenue + labour_revenue   (pre-HST subtotal)
+//   profit          = total_price − material_cost         (labour is NEVER subtracted)
+//   profit_margin   = (profit / total_price) × 100
+//   hst             = total_price × 0.13
+//   total_with_tax  = total_price + hst
+//
+// subContractorCost is an INTERNAL overhead deducted from profit only.
+// It never appears on the customer-facing quote or invoice.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function calculateJobTotals(job) {
+  const {
+    jobType        = "Drain Cleaning",
+    hours          = 0,
+    hourlyRate     = 0,
+    materialCost   = 0,   // raw cost (what you paid)
+    markup         = 1.4,
+    fixtures       = [],
+    pipes          = [],
+    fittings       = [],
+    roughLabour    = 0,
+    subContractorCost = 0,
+  } = job;
+
+  const HST = 0.13;
+
+  let material_cost    = 0;  // what you paid
+  let material_revenue = 0;  // what customer pays for materials
+  let labour_revenue   = 0;  // what customer pays for labour
+
+  if (jobType === "Rough In") {
+    // Pipes: sell price vs cost price are tracked separately per row
+    const pipesRevenue = pipes.reduce((s, p) => s + Number(p.length || 0) * Number(p.pricePerFt || 0), 0);
+    const pipesCost    = pipes.reduce((s, p) => s + Number(p.length || 0) * Number(p.costPerFt  || p.pricePerFt || 0), 0);
+
+    const fittingsRevenue = fittings.reduce((s, f) => s + Number(f.qty || 0) * Number(f.unitPrice || 0), 0);
+    const fittingsCost    = fittings.reduce((s, f) => s + Number(f.qty || 0) * Number(f.unitCost  || f.unitPrice || 0), 0);
+
+    material_cost    = pipesCost + fittingsCost;
+    material_revenue = pipesRevenue + fittingsRevenue;
+    labour_revenue   = Number(roughLabour);   // roughLabour = labour charge billed to customer
+
+  } else if (jobType === "Fixture Install") {
+    // Fixtures: labour is the charge per fixture × qty
+    labour_revenue   = fixtures.reduce((s, f) => s + Number(f.labour || 0) * Number(f.qty || 0), 0);
+    material_cost    = Number(materialCost);
+    material_revenue = Number(materialCost) * Number(markup);
+
+  } else {
+    // Drain Cleaning, Pipe Repair, Water Heater, Service Call
+    labour_revenue   = Number(hours) * Number(hourlyRate);
+    material_cost    = Number(materialCost);
+    material_revenue = Number(materialCost) * Number(markup);
+  }
+
+  const total_price    = material_revenue + labour_revenue;   // subtotal (pre-HST)
+  const hst            = total_price * HST;
+  const total_with_tax = total_price + hst;
+
+  // Profit: revenue minus what it actually cost you.
+  // Labour is REVENUE, not a cost. Sub costs are an internal overhead.
+  const profit         = total_price - material_cost - Number(subContractorCost);
+  const profit_margin  = total_price > 0 ? (profit / total_price) * 100 : 0;
+
+  return {
+    material_cost:    round2(material_cost),
+    material_revenue: round2(material_revenue),
+    labour_revenue:   round2(labour_revenue),
+    total_price:      round2(total_price),      // subtotal
+    hst:              round2(hst),
+    total_with_tax:   round2(total_with_tax),   // total incl HST
+    profit:           round2(profit),
+    profit_margin:    parseFloat(profit_margin.toFixed(1)),
+    // legacy field aliases so existing Firestore reads keep working
+    subtotal:         round2(total_price),
+    total:            round2(total_with_tax),
+  };
+}
+
+function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ROOT APP
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -643,29 +732,41 @@ function LoginScreen({ onLogin }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function DashboardView({ quotes, invoices, customers, onOpenQuote, onNewQuote }) {
-  const totalRevenue = invoices
-    .filter(i => i.status === "Paid")
-    .reduce((s, i) => s + (Number(i.total) || 0), 0);
+  // PROFIT FIX — recalculate all paid invoices through the central engine
+  // so the dashboard always shows correct numbers even for old records
+  const paidInvoices = invoices.filter(i => i.status === "Paid");
 
-  const totalProfit = invoices
-    .filter(i => i.status === "Paid")
-    .reduce((s, i) => s + (Number(i.profit) || 0), 0);
+  const totalRevenue = paidInvoices.reduce((s, i) => s + (Number(i.total) || 0), 0);
 
-  const pendingQuotes = quotes.filter(q => q.status === "Sent" || q.status === "Draft").length;
-  const recentQuotes  = quotes.slice(0, 5);
+  // Recalculate profit correctly for each paid invoice via central engine
+  const totalProfit = paidInvoices.reduce((s, i) => {
+    const c = calculateJobTotals(i);
+    return s + c.profit;
+  }, 0);
 
-  // NEW — overdue invoices
+  const avgMargin = paidInvoices.length > 0
+    ? paidInvoices.reduce((s, i) => {
+        const c = calculateJobTotals(i);
+        return s + c.profit_margin;
+      }, 0) / paidInvoices.length
+    : 0;
+
+  const pendingQuotes  = quotes.filter(q => q.status === "Sent" || q.status === "Draft").length;
+  const recentQuotes   = quotes.slice(0, 5);
   const overdueInvoices = invoices.filter(i => isOverdue(i) && i.status !== "Paid");
   const pendingRevenue  = invoices
     .filter(i => i.status === "Sent" || i.status === "Draft")
     .reduce((s, i) => s + (Number(i.total) || 0), 0);
 
+  const marginColor = avgMargin >= 40 ? C.green : avgMargin >= 25 ? C.accent : C.danger;
+
   const stats = [
-    { label: "Revenue (Paid)",   value: fmtCurrency(totalRevenue), color: C.green  },
-    { label: "Total Profit",     value: fmtCurrency(totalProfit),  color: C.sky    },
-    { label: "Pending Revenue",  value: fmtCurrency(pendingRevenue), color: C.accent },
-    { label: "Pending Quotes",   value: pendingQuotes,             color: C.muted  },
-    { label: "Customers",        value: customers.length,          color: C.blue   },
+    { label: "Revenue (Paid)",   value: fmtCurrency(totalRevenue),           color: C.green  },
+    { label: "Total Profit",     value: fmtCurrency(totalProfit),             color: C.sky    },
+    { label: "Avg Margin",       value: avgMargin.toFixed(1) + "%",           color: marginColor },
+    { label: "Pending Revenue",  value: fmtCurrency(pendingRevenue),          color: C.accent },
+    { label: "Pending Quotes",   value: pendingQuotes,                        color: C.muted  },
+    { label: "Customers",        value: customers.length,                     color: C.blue   },
   ];
 
   return (
@@ -768,20 +869,26 @@ function QuotesListView({ quotes, customers, onOpenQuote, onNewQuote, onDuplicat
       const d = q.createdAt?.toDate ? q.createdAt.toDate() : new Date(q.createdAt || 0);
       return d <= new Date(exportRange.to + "T23:59:59");
     });
-    const headers = ["Quote #","Date","Customer","Job Name","Job Type","Subtotal","HST","Total","Profit","Status","Expiry"];
-    const csvRows = rows.map(q => [
-      q.quoteNumber || "",
-      fmtDate(q.createdAt),
-      custName(q.customerId) || q.clientName || "",
-      q.jobName || "",
-      q.jobType || "",
-      (q.subtotal || 0).toFixed(2),
-      (q.hst || 0).toFixed(2),
-      (q.total || 0).toFixed(2),
-      (q.profit || 0).toFixed(2),
-      q.status || "Draft",
-      q.expiryDate || "",
-    ]);
+    const headers = ["Quote #","Date","Customer","Job Name","Job Type","Material Cost","Labour Revenue","Subtotal","HST","Total","Profit","Margin %","Status","Expiry"];
+    const csvRows = rows.map(q => {
+      const c = calculateJobTotals(q);
+      return [
+        q.quoteNumber || "",
+        fmtDate(q.createdAt),
+        custName(q.customerId) || q.clientName || "",
+        q.jobName || "",
+        q.jobType || "",
+        c.material_cost.toFixed(2),
+        c.labour_revenue.toFixed(2),
+        c.total_price.toFixed(2),
+        c.hst.toFixed(2),
+        c.total_with_tax.toFixed(2),
+        c.profit.toFixed(2),
+        c.profit_margin.toFixed(1) + "%",
+        q.status || "Draft",
+        q.expiryDate || "",
+      ];
+    });
     const csv = [headers, ...csvRows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
@@ -896,20 +1003,26 @@ function InvoicesListView({ invoices, customers, quotes, user }) {
       const d = inv.createdAt?.toDate ? inv.createdAt.toDate() : new Date(inv.createdAt || 0);
       return d <= new Date(exportRange.to + "T23:59:59");
     });
-    const headers = ["Invoice #","Date","Due Date","Paid Date","Customer","Job Name","Subtotal","HST","Total","Profit","Status"];
-    const csvRows = rows.map(inv => [
-      inv.invoiceNumber || "",
-      fmtDate(inv.createdAt),
-      inv.dueDate || "",
-      fmtDate(inv.paidAt),
-      custName(inv),
-      inv.jobName || "",
-      (inv.subtotal || 0).toFixed(2),
-      (inv.hst || 0).toFixed(2),
-      (inv.total || 0).toFixed(2),
-      (inv.profit || 0).toFixed(2),
-      effectiveStatus(inv),
-    ]);
+    const headers = ["Invoice #","Date","Due Date","Paid Date","Customer","Job Name","Material Cost","Labour Revenue","Subtotal","HST","Total","Profit","Margin %","Status"];
+    const csvRows = rows.map(inv => {
+      const c = calculateJobTotals(inv);
+      return [
+        inv.invoiceNumber || "",
+        fmtDate(inv.createdAt),
+        inv.dueDate || "",
+        fmtDate(inv.paidAt),
+        custName(inv),
+        inv.jobName || "",
+        c.material_cost.toFixed(2),
+        c.labour_revenue.toFixed(2),
+        c.total_price.toFixed(2),
+        c.hst.toFixed(2),
+        c.total_with_tax.toFixed(2),
+        c.profit.toFixed(2),
+        c.profit_margin.toFixed(1) + "%",
+        effectiveStatus(inv),
+      ];
+    });
     const csv = [headers, ...csvRows].map(r => r.map(v => `"${v}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
@@ -979,8 +1092,10 @@ function InvoicesListView({ invoices, customers, quotes, user }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <span style={{ ...s.statusBadge, ...(STATUS_STYLE[effStatus] || STATUS_STYLE.Draft) }}>{effStatus}</span>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontWeight: 700, color: C.navy }}>{fmtCurrency(inv.total)}</div>
-                    <div style={{ fontSize: "0.75rem", color: C.muted }}>profit {fmtCurrency(inv.profit)}</div>
+                    <div style={{ fontWeight: 700, color: C.navy }}>{fmtCurrency(inv.total || calculateJobTotals(inv).total_with_tax)}</div>
+                    <div style={{ fontSize: "0.75rem", color: C.muted }}>
+                      profit {fmtCurrency(calculateJobTotals(inv).profit)} · {calculateJobTotals(inv).profit_margin.toFixed(0)}%
+                    </div>
                   </div>
                   {inv.status !== "Paid" && (
                     <button style={{ ...s.primaryBtn, padding: "7px 14px", fontSize: "0.82rem" }} onClick={() => markPaid(inv)}>
@@ -1543,39 +1658,25 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
     setFittings(u);
   };
 
-  // ── Calculations
-  const laborCost     = hourlyRate * hours;
-  const materials     = materialCost * markup;
-  const fixtureTotal  = fixtures.reduce((s, f) => s + Number(f.labour) * Number(f.qty), 0);
-  const pipesTotal    = pipes.reduce((s, p) => s + Number(p.length) * Number(p.pricePerFt), 0);
-  const fittingsTotal = fittings.reduce((s, f) => s + Number(f.qty) * Number(f.unitPrice), 0);
+  // PROFIT FIX — all calculations flow through the central engine
+  const calc = calculateJobTotals({
+    jobType, hours, hourlyRate, materialCost, markup,
+    fixtures, pipes, fittings, roughLabour, subContractorCost,
+  });
 
-  // NEW — separate cost totals for correct profit on Rough In
-  const pipesCost     = pipes.reduce((s, p) => s + Number(p.length) * Number(p.costPerFt || p.pricePerFt), 0);
-  const fittingsCost  = fittings.reduce((s, f) => s + Number(f.qty) * Number(f.unitCost || f.unitPrice), 0);
+  // Convenience aliases so existing JSX below keeps working unchanged
+  const laborCost     = calc.labour_revenue;
+  const materials     = calc.material_revenue;
+  const fixtureTotal  = calc.labour_revenue;
+  const pipesTotal    = pipes.reduce((s, p) => s + Number(p.length || 0) * Number(p.pricePerFt || 0), 0);
+  const fittingsTotal = fittings.reduce((s, f) => s + Number(f.qty || 0) * Number(f.unitPrice || 0), 0);
   const roughInTotal  = pipesTotal + fittingsTotal + Number(roughLabour);
-  const roughInCost   = pipesCost + fittingsCost + Number(roughLabour); // NEW — true cost
-
-  const subtotal =
-    jobType === "Fixture Install" ? fixtureTotal + materials
-    : jobType === "Rough In"     ? roughInTotal
-    : laborCost + materials;
-
-  const HST_RATE = 0.13;
-  const hst      = subtotal * HST_RATE;
-  const total    = subtotal + hst;
-
-  // NEW — fixed profit calculation
-  const costBase =
-    jobType === "Rough In"          ? roughInCost + Number(subContractorCost)
-    : jobType === "Fixture Install" ? fixtureTotal + materialCost + Number(subContractorCost)
-    : laborCost + materialCost + Number(subContractorCost);
-
-  const profit    = total - costBase;
-  const profitPct = total > 0 ? ((profit / total) * 100).toFixed(1) : "0.0";
-
-  // NEW — low margin warning
-  const marginWarning = Number(profitPct) < (settings?.defaultMarginWarning || LOW_MARGIN_THRESHOLD);
+  const subtotal      = calc.total_price;
+  const hst           = calc.hst;
+  const total         = calc.total_with_tax;
+  const profit        = calc.profit;
+  const profitPct     = calc.profit_margin.toFixed(1);
+  const marginWarning = calc.profit_margin < (settings?.defaultMarginWarning || LOW_MARGIN_THRESHOLD);
 
   const handleSave = async () => {
     // NEW — warn on low margin before saving
@@ -1590,9 +1691,16 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
         jobName, customerId, status, companyName, clientName, jobType,
         hours, hourlyRate, materialCost, markup, materialsList, logo,
         fixtures, pipes, fittings, roughLabour,
-        siteNotes,         // NEW
-        subContractorCost, // NEW
-        subtotal, hst, total, profit: Number(profit.toFixed(2)),
+        siteNotes, subContractorCost,
+        // PROFIT FIX — store all calculated fields from central engine
+        subtotal:         calc.total_price,
+        hst:              calc.hst,
+        total:            calc.total_with_tax,
+        profit:           calc.profit,
+        profit_margin:    calc.profit_margin,
+        material_cost:    calc.material_cost,
+        material_revenue: calc.material_revenue,
+        labour_revenue:   calc.labour_revenue,
         pipesTotal, fittingsTotal, roughInTotal,
       };
       const saved = await saveQuote(payload, user.uid, settings);
@@ -1781,22 +1889,24 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-      {/* ── TOTAL BANNER */}
+      {/* ── TOTAL BANNER — PROFIT FIX */}
       <div style={s.totalBanner}>
         <div>
           <div style={s.totalLabel}>Estimated Total</div>
-          <div style={s.totalAmount}>${total.toFixed(2)}</div>
+          <div style={s.totalAmount}>{fmtCurrency(calc.total_with_tax)}</div>
           <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", marginTop: 4 }}>incl. HST (13%)</div>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 18px", textAlign: "center" }}>
             <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>PROFIT</div>
             <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.3rem", color: profit >= 0 ? "#4ade80" : "#f87171" }}>
-              {fmtCurrency(profit)} <span style={{ fontSize: "0.85rem", opacity: 0.7 }}>({profitPct}%)</span>
+              {fmtCurrency(profit)}
             </div>
-            {/* NEW — margin warning badge */}
+            <div style={{ fontSize: "0.7rem", color: profit >= 0 ? "#4ade80" : "#f87171", marginTop: 2 }}>
+              {profitPct}% margin
+            </div>
             {marginWarning && profit > 0 && (
-              <div style={{ fontSize: "0.7rem", color: "#fbbf24", marginTop: 4 }}>⚠ Low margin</div>
+              <div style={{ fontSize: "0.7rem", color: "#fbbf24", marginTop: 2 }}>⚠ Low margin</div>
             )}
           </div>
           <button style={pdfSuccess ? { ...s.pdfBtn, ...s.pdfBtnSuccess } : s.pdfBtn} onClick={generatePDF}>
@@ -2109,37 +2219,70 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
         </Row>
       </Section>
 
-      {/* ── SUMMARY */}
+      {/* ── SUMMARY — PROFIT FIX: all values from calculateJobTotals */}
       <div style={s.summaryCard}>
         <div style={s.summaryTitle}>Quote Summary</div>
-        {jobType === "Rough In" ? (
-          <>
-            <div style={s.summaryLine}><span>Piping</span><span>${pipesTotal.toFixed(2)}</span></div>
-            <div style={s.summaryLine}><span>Fittings</span><span>${fittingsTotal.toFixed(2)}</span></div>
-            <div style={s.summaryLine}><span>Labour</span><span>${Number(roughLabour).toFixed(2)}</span></div>
-          </>
-        ) : (
-          <>
-            <div style={s.summaryLine}>
-              <span>{jobType === "Fixture Install" ? "Fixture Labour" : "Labour"}</span>
-              <span>${(jobType === "Fixture Install" ? fixtureTotal : laborCost).toFixed(2)}</span>
-            </div>
-            <div style={s.summaryLine}><span>Materials (incl. markup)</span><span>${materials.toFixed(2)}</span></div>
-          </>
-        )}
+
+        {/* Revenue breakdown */}
+        <div style={{ ...s.summaryLine, fontSize: "0.82rem", color: C.muted, fontWeight: 600, paddingBottom: 4 }}>
+          <span>REVENUE BREAKDOWN</span>
+        </div>
+        <div style={s.summaryLine}>
+          <span>Labour revenue</span>
+          <span>{fmtCurrency(calc.labour_revenue)}</span>
+        </div>
+        <div style={s.summaryLine}>
+          <span>Material revenue (incl. markup)</span>
+          <span>{fmtCurrency(calc.material_revenue)}</span>
+        </div>
+
+        {/* Cost breakdown */}
+        <div style={{ ...s.summaryLine, fontSize: "0.82rem", color: C.muted, fontWeight: 600, paddingBottom: 4, paddingTop: 8 }}>
+          <span>COST BREAKDOWN</span>
+        </div>
+        <div style={s.summaryLine}>
+          <span>Material cost (what you paid)</span>
+          <span style={{ color: C.danger }}>−{fmtCurrency(calc.material_cost)}</span>
+        </div>
         {Number(subContractorCost) > 0 && (
           <div style={{ ...s.summaryLine, color: C.muted, fontStyle: "italic" }}>
-            <span>Subcontractor (internal cost)</span><span>−{fmtCurrency(subContractorCost)}</span>
+            <span>Subcontractor (internal)</span>
+            <span style={{ color: C.danger }}>−{fmtCurrency(subContractorCost)}</span>
           </div>
         )}
-        <div style={s.summaryLine}><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-        <div style={{ ...s.summaryLine, color: C.sky }}><span>HST (13%)</span><span>${hst.toFixed(2)}</span></div>
+
+        <div style={{ borderTop: "1.5px solid " + C.border, marginTop: 8 }} />
+        <div style={s.summaryLine}><span>Subtotal</span><span>{fmtCurrency(calc.total_price)}</span></div>
+        <div style={{ ...s.summaryLine, color: C.sky }}><span>HST (13%)</span><span>{fmtCurrency(calc.hst)}</span></div>
         <div style={s.summaryDivider} />
-        <div style={s.summaryTotal}><span>Total</span><span>${total.toFixed(2)}</span></div>
-        <div style={{ ...s.summaryLine, borderBottom: "none", color: profit >= 0 ? (marginWarning ? C.amber : C.green) : C.danger, fontWeight: 600 }}>
-          <span>Profit {marginWarning && profit > 0 ? "⚠ Low margin" : ""}</span>
-          <span>{fmtCurrency(profit)} ({profitPct}%)</span>
+        <div style={s.summaryTotal}><span>Total</span><span>{fmtCurrency(calc.total_with_tax)}</span></div>
+
+        {/* Profit — PROFIT FIX: profit = total_price - material_cost (labour never subtracted) */}
+        <div style={{
+          background: profit >= 0 ? (marginWarning ? "#fff7ed" : "#f0fdf4") : "#fef2f2",
+          border: `1px solid ${profit >= 0 ? (marginWarning ? "#fed7aa" : "#bbf7d0") : "#fecaca"}`,
+          borderRadius: 10, padding: "12px 14px", marginTop: 12,
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+        }}>
+          <div>
+            <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: C.muted, marginBottom: 2 }}>
+              Profit {marginWarning && profit > 0 ? "— ⚠ Low margin" : ""}
+            </div>
+            <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.4rem", color: profit >= 0 ? (marginWarning ? "#c2410c" : "#16a34a") : C.danger }}>
+              {fmtCurrency(profit)}
+            </div>
+          </div>
+          <div style={{
+            background: profit >= 0 ? (marginWarning ? "#fed7aa" : "#bbf7d0") : "#fecaca",
+            borderRadius: 8, padding: "8px 14px", textAlign: "center",
+          }}>
+            <div style={{ fontSize: "0.7rem", color: C.muted, marginBottom: 2 }}>MARGIN</div>
+            <div style={{ fontWeight: 700, fontSize: "1.1rem", color: profit >= 0 ? (marginWarning ? "#c2410c" : "#16a34a") : C.danger }}>
+              {profitPct}%
+            </div>
+          </div>
         </div>
+
         <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
           <button style={pdfSuccess ? { ...s.pdfBtnFull, ...s.pdfBtnSuccess } : s.pdfBtnFull} onClick={generatePDF}>
             {pdfSuccess ? "✓ PDF Downloaded!" : "⬇ Download Quote PDF"}
@@ -2159,6 +2302,8 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
 // ─────────────────────────────────────────────────────────────────────────────
 
 function QuoteRow({ q, custName, onClick, onDuplicate, showDuplicate }) {
+  // PROFIT FIX — recalculate on render so list always shows correct margin
+  const calc = calculateJobTotals(q);
   return (
     <div style={{ ...s.listRow, cursor: "pointer" }} onClick={onClick}>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -2174,8 +2319,10 @@ function QuoteRow({ q, custName, onClick, onDuplicate, showDuplicate }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         <span style={{ ...s.statusBadge, ...(STATUS_STYLE[q.status] || STATUS_STYLE.Draft) }}>{q.status || "Draft"}</span>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.95rem" }}>{fmtCurrency(q.total)}</div>
-          {q.profit != null && <div style={{ fontSize: "0.73rem", color: C.muted }}>profit {fmtCurrency(q.profit)}</div>}
+          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.95rem" }}>{fmtCurrency(q.total || calc.total_with_tax)}</div>
+          <div style={{ fontSize: "0.73rem", color: calc.profit_margin < 20 ? C.danger : C.muted }}>
+            {fmtCurrency(calc.profit)} · {calc.profit_margin.toFixed(0)}%
+          </div>
         </div>
         {showDuplicate && (
           <button style={{ ...s.secondaryBtn, padding: "5px 10px", fontSize: "0.78rem" }} onClick={e => { e.stopPropagation(); onDuplicate(); }}>
