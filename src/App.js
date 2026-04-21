@@ -1847,7 +1847,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
     } else {
       sectionHeader("Labour & Materials");
       dataRow([["Labour", L + 2, "left"], ["$" + laborCost.toFixed(2), R, "right"]], false);
-      dataRow([["Materials (incl. markup)", L + 2, "left"], ["$" + materials.toFixed(2), R, "right"]], true); y += 4;
+      dataRow([["Materials", L + 2, "left"], ["$" + materials.toFixed(2), R, "right"]], true); y += 4;
     }
 
     // NEW — subcontractor line on PDF
@@ -2184,11 +2184,8 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
             <Field label="Material Cost ($)">
               <input style={s.input} type="number" value={materialCost} onChange={(e) => setMaterialCost(Number(e.target.value))} />
             </Field>
-            <Field label="Markup Multiplier">
-              <input style={s.input} type="number" step="0.05" value={markup} onChange={(e) => setMarkup(Number(e.target.value))} />
-            </Field>
-            <Field label="Marked Up Total">
-              <div style={s.calcDisplay}>${materials.toFixed(2)}</div>
+            <Field label="Materials Total">
+              <div style={s.calcDisplay}>{fmtCurrency(calc.material_revenue)}</div>
             </Field>
           </Row>
           <Field label="Materials List (for PDF)">
@@ -2232,7 +2229,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
           <span>{fmtCurrency(calc.labour_revenue)}</span>
         </div>
         <div style={s.summaryLine}>
-          <span>Material revenue (incl. markup)</span>
+          <span>Materials</span>
           <span>{fmtCurrency(calc.material_revenue)}</span>
         </div>
 
