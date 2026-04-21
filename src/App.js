@@ -8,21 +8,32 @@ import {
 import { jsPDF } from "jspdf";
 
 // ── Google Font import (add to your index.html <head>)
-// <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+// <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
 const C = {
-  navy:   "#0d1f3c",
-  blue:   "#1a4b8c",
-  sky:    "#2e7dd1",
-  accent: "#f5a623",
-  light:  "#f0f5fc",
-  white:  "#ffffff",
-  text:   "#2a3a52",
-  muted:  "#637592",
-  border: "#d4e1f5",
-  danger: "#e53e3e",
-  green:  "#22c55e",
-  amber:  "#f59e0b",
+  navy:    "#0B1628",
+  navyMid: "#1D3461",
+  blue:    "#2563EB",
+  sky:     "#3B82F6",
+  accent:  "#F59E0B",
+  accentDark: "#D97706",
+  bg:      "#F4F6FA",
+  white:   "#ffffff",
+  text:    "#111827",
+  sub:     "#374151",
+  muted:   "#6B7280",
+  hint:    "#9CA3AF",
+  border:  "#E5E9F2",
+  borderLight: "#F3F4F6",
+  danger:  "#DC2626",
+  dangerBg:"#FEF2F2",
+  dangerBorder:"#FECACA",
+  green:   "#059669",
+  greenBg: "#ECFDF5",
+  greenBorder:"#A7F3D0",
+  amber:   "#D97706",
+  amberBg: "#FFFBEB",
+  amberBorder:"#FDE68A",
 };
 
 const JOB_TYPES = ["Drain Cleaning", "Fixture Install", "Pipe Repair", "Rough In", "Water Heater", "Service Call"];
@@ -241,14 +252,14 @@ const STATUS_QUOTE   = ["Draft", "Sent", "Approved", "Rejected", "Expired"];
 const STATUS_INVOICE = ["Draft", "Sent", "Paid", "Overdue"];
 
 const STATUS_STYLE = {
-  Draft:    { background: "#f0f5fc", color: "#637592",  border: "1px solid #d4e1f5" },
-  Sent:     { background: "#eff6ff", color: "#2e7dd1",  border: "1px solid #bfdbfe" },
-  Approved: { background: "#f0fdf4", color: "#16a34a",  border: "1px solid #bbf7d0" },
-  Rejected: { background: "#fef2f2", color: "#dc2626",  border: "1px solid #fecaca" },
-  Expired:  { background: "#fdf4ff", color: "#9333ea",  border: "1px solid #e9d5ff" },
-  Paid:     { background: "#f0fdf4", color: "#16a34a",  border: "1px solid #bbf7d0" },
-  Overdue:  { background: "#fff7ed", color: "#c2410c",  border: "1px solid #fed7aa" },
-  Invoice:  { background: "#fefce8", color: "#ca8a04",  border: "1px solid #fde68a" },
+  Draft:    { background: "#F9FAFB", color: "#6B7280",  border: "1px solid #E5E9F2" },
+  Sent:     { background: "#EFF6FF", color: "#1D4ED8",  border: "1px solid #BFDBFE" },
+  Approved: { background: "#ECFDF5", color: "#065F46",  border: "1px solid #A7F3D0" },
+  Rejected: { background: "#FEF2F2", color: "#DC2626",  border: "1px solid #FECACA" },
+  Expired:  { background: "#F5F3FF", color: "#6D28D9",  border: "1px solid #DDD6FE" },
+  Paid:     { background: "#ECFDF5", color: "#065F46",  border: "1px solid #A7F3D0" },
+  Overdue:  { background: "#FFF7ED", color: "#C2410C",  border: "1px solid #FED7AA" },
+  Invoice:  { background: "#FFFBEB", color: "#D97706",  border: "1px solid #FDE68A" },
 };
 
 // NEW FEATURE — default company settings shape
@@ -449,21 +460,21 @@ export default function App() {
 
   // bottom tab nav — 5 primary items, "more" drawer for templates/settings
   const bottomTabs = [
-    { id: "dashboard", label: "Home",     icon: "🏠" },
-    { id: "quote",     label: "New",      icon: "✚"  },
-    { id: "quotes",    label: "Quotes",   icon: "📄" },
-    { id: "invoices",  label: "Invoices", icon: "🧾" },
-    { id: "more",      label: "More",     icon: "☰"  },
+    { id: "dashboard", label: "Home",     icon: "⌂" },
+    { id: "quote",     label: "New",      icon: "+"  },
+    { id: "quotes",    label: "Quotes",   icon: "≡" },
+    { id: "invoices",  label: "Invoices", icon: "$" },
+    { id: "more",      label: "More",     icon: "≡"  },
   ];
 
   const desktopNavItems = [
-    { id: "dashboard",  label: "Dashboard",  icon: "🏠" },
-    { id: "quote",      label: "New Quote",  icon: "✚"  },
-    { id: "quotes",     label: "Quotes",     icon: "📄" },
-    { id: "invoices",   label: "Invoices",   icon: "🧾" },
-    { id: "customers",  label: "Customers",  icon: "👤" },
-    { id: "templates",  label: "Templates",  icon: "📋" },
-    { id: "settings",   label: "Settings",   icon: "⚙️" },
+    { id: "dashboard",  label: "Dashboard",  icon: "⌂" },
+    { id: "quote",      label: "New Quote",  icon: "+"  },
+    { id: "quotes",     label: "Quotes",     icon: "≡" },
+    { id: "invoices",   label: "Invoices",   icon: "$" },
+    { id: "customers",  label: "Customers",  icon: "○" },
+    { id: "templates",  label: "Templates",  icon: "▤" },
+    { id: "settings",   label: "Settings",   icon: "◎" },
   ];
 
   const overdueCount = invoices.filter(i => isOverdue(i) && i.status !== "Paid").length;
@@ -487,14 +498,14 @@ export default function App() {
               <path d="M8 12h8M12 8v8"/>
             </svg>
           </div>
-          <span style={s.headerTitle}>Plumb<span style={{ color: C.sky }}>Quote</span> 3</span>
+          <span style={s.headerTitle}>Plumb<span style={{ color: "#3B82F6" }}>Quote</span> 3</span>
         </div>
         <nav style={s.nav}>
           {desktopNavItems.map(n => (
             <button key={n.id} style={isActive(n.id) ? { ...s.navBtn, ...s.navBtnActive } : s.navBtn} onClick={() => navigate(n.id)}>
               <span style={{ marginRight: 5, fontSize: 14 }}>{n.icon}</span>{n.label}
               {n.id === "invoices" && overdueCount > 0 && (
-                <span style={{ marginLeft: 6, background: C.danger, color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: "0.7rem", fontWeight: 700 }}>{overdueCount}</span>
+                <span style={{ marginLeft: 6, background: "#DC2626", color: "#fff", borderRadius: 10, padding: "1px 7px", fontSize: "0.7rem", fontWeight: 700 }}>{overdueCount}</span>
               )}
             </button>
           ))}
@@ -514,7 +525,7 @@ export default function App() {
               <path d="M8 12h8M12 8v8"/>
             </svg>
           </div>
-          <span style={s.headerTitle}>Plumb<span style={{ color: C.sky }}>Quote</span> 3</span>
+          <span style={s.headerTitle}>Plumb<span style={{ color: "#3B82F6" }}>Quote</span> 3</span>
         </div>
         <div style={s.headerRight}>
           <div style={s.avatar}>{user.displayName?.[0] ?? "U"}</div>
@@ -526,15 +537,15 @@ export default function App() {
       {showMore && (
         <div style={s.moreDrawerOverlay} onClick={() => setShowMore(false)}>
           <div style={s.moreDrawer} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid " + C.border, fontWeight: 700, color: C.navy, fontSize: "0.9rem" }}>More</div>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid " + "#E5E9F2", fontWeight: 700, color: "#0B1628", fontSize: "0.9rem" }}>More</div>
             {[
-              { id: "customers", label: "Customers", icon: "👤" },
-              { id: "templates", label: "Templates", icon: "📋" },
-              { id: "settings",  label: "Settings",  icon: "⚙️" },
+              { id: "customers", label: "Customers", icon: "○" },
+              { id: "templates", label: "Templates", icon: "▤" },
+              { id: "settings",  label: "Settings",  icon: "◎" },
             ].map(n => (
               <button key={n.id} style={s.moreDrawerItem} onClick={() => navigate(n.id)}>
                 <span style={{ fontSize: 18, marginRight: 14 }}>{n.icon}</span>
-                <span style={{ fontSize: "1rem", color: C.navy }}>{n.label}</span>
+                <span style={{ fontSize: "1rem", color: "#0B1628" }}>{n.label}</span>
               </button>
             ))}
           </div>
@@ -581,7 +592,7 @@ export default function App() {
               <span style={{ fontSize: "0.65rem", fontWeight: active ? 700 : 500, letterSpacing: "0.02em" }}>
                 {n.label}
                 {n.id === "invoices" && overdueCount > 0 && (
-                  <span style={{ marginLeft: 3, background: C.danger, color: "#fff", borderRadius: 8, padding: "0 5px", fontSize: "0.6rem", fontWeight: 700 }}>{overdueCount}</span>
+                  <span style={{ marginLeft: 3, background: "#DC2626", color: "#fff", borderRadius: 8, padding: "0 5px", fontSize: "0.6rem", fontWeight: 700 }}>{overdueCount}</span>
                 )}
               </span>
             </button>
@@ -710,7 +721,7 @@ function LoginScreen({ onLogin }) {
             <path d="M8 12h8M12 8v8"/>
           </svg>
         </div>
-        <h1 style={s.loginTitle}>Plumb<span style={{ color: C.sky }}>Quote</span> 3</h1>
+        <h1 style={s.loginTitle}>Plumb<span style={{ color: "#3B82F6" }}>Quote</span> 3</h1>
         <p style={s.loginSub}>Professional plumbing estimates in 30 seconds</p>
         <button style={s.googleBtn} onClick={onLogin}>
           <svg width="18" height="18" viewBox="0 0 24 24" style={{ marginRight: 10, flexShrink: 0 }}>
@@ -758,15 +769,15 @@ function DashboardView({ quotes, invoices, customers, onOpenQuote, onNewQuote })
     .filter(i => i.status === "Sent" || i.status === "Draft")
     .reduce((s, i) => s + (Number(i.total) || 0), 0);
 
-  const marginColor = avgMargin >= 40 ? C.green : avgMargin >= 25 ? C.accent : C.danger;
+  const marginColor = avgMargin >= 40 ? "#059669" : avgMargin >= 25 ? "#F59E0B" : "#DC2626";
 
   const stats = [
-    { label: "Revenue (Paid)",   value: fmtCurrency(totalRevenue),           color: C.green  },
-    { label: "Total Profit",     value: fmtCurrency(totalProfit),             color: C.sky    },
+    { label: "Revenue (Paid)",   value: fmtCurrency(totalRevenue),           color: "#059669"  },
+    { label: "Total Profit",     value: fmtCurrency(totalProfit),             color: "#3B82F6"    },
     { label: "Avg Margin",       value: avgMargin.toFixed(1) + "%",           color: marginColor },
-    { label: "Pending Revenue",  value: fmtCurrency(pendingRevenue),          color: C.accent },
-    { label: "Pending Quotes",   value: pendingQuotes,                        color: C.muted  },
-    { label: "Customers",        value: customers.length,                     color: C.blue   },
+    { label: "Pending Revenue",  value: fmtCurrency(pendingRevenue),          color: "#F59E0B" },
+    { label: "Pending Quotes",   value: pendingQuotes,                        color: "#6B7280"  },
+    { label: "Customers",        value: customers.length,                     color: "#2563EB"   },
   ];
 
   return (
@@ -779,7 +790,7 @@ function DashboardView({ quotes, invoices, customers, onOpenQuote, onNewQuote })
       {/* NEW — overdue alert banner */}
       {overdueInvoices.length > 0 && (
         <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, padding: "14px 20px", display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: "1.2rem" }}>⚠️</span>
+          <span style={{ fontSize: "1.2rem" }}/span>
           <div>
             <div style={{ fontWeight: 700, color: "#c2410c", fontSize: "0.9rem" }}>
               {overdueInvoices.length} overdue invoice{overdueInvoices.length > 1 ? "s" : ""}
@@ -795,8 +806,8 @@ function DashboardView({ quotes, invoices, customers, onOpenQuote, onNewQuote })
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
         {stats.map(st => (
           <div key={st.label} style={s.statCard}>
-            <div style={{ fontSize: "0.72rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: C.muted, marginBottom: 8 }}>{st.label}</div>
-            <div style={{ fontSize: "1.7rem", fontWeight: 700, color: st.color, fontFamily: "'DM Serif Display', serif" }}>{st.value}</div>
+            <div style={{ fontSize: "0.72rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "#6B7280", marginBottom: 8 }}>{st.label}</div>
+            <div style={{ fontSize: "1.7rem", fontWeight: 700, color: st.color, fontFamily: "'Sora', sans-serif" }}>{st.value}</div>
           </div>
         ))}
       </div>
@@ -818,7 +829,7 @@ function DashboardView({ quotes, invoices, customers, onOpenQuote, onNewQuote })
       {overdueInvoices.length > 0 && (
         <div style={s.section}>
           <div style={{ ...s.sectionHeader, background: "#fff7ed", borderBottom: "1px solid #fed7aa" }}>
-            <span style={{ ...s.sectionTitle, color: "#c2410c" }}>⚠️ Overdue Invoices</span>
+            <span style={{ ...s.sectionTitle, color: "#c2410c" }}>Overdue Invoices</span>
           </div>
           <div style={s.sectionBody}>
             {overdueInvoices.map(inv => (
@@ -829,7 +840,7 @@ function DashboardView({ quotes, invoices, customers, onOpenQuote, onNewQuote })
                     {inv.invoiceNumber && `${inv.invoiceNumber} · `}Due {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString("en-CA") : "—"}
                   </div>
                 </div>
-                <div style={{ fontWeight: 700, color: C.danger }}>{fmtCurrency(inv.total)}</div>
+                <div style={{ fontWeight: 700, color: "#DC2626" }}>{fmtCurrency(inv.total)}</div>
               </div>
             ))}
           </div>
@@ -923,7 +934,7 @@ function QuotesListView({ quotes, customers, onOpenQuote, onNewQuote, onDuplicat
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <input
           style={{ ...s.input, maxWidth: 280 }}
-          placeholder="🔍  Search by customer or job..."
+          placeholder="Search by customer or job..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -1054,7 +1065,7 @@ function InvoicesListView({ invoices, customers, quotes, user }) {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <input
           style={{ ...s.input, maxWidth: 280 }}
-          placeholder="🔍  Search invoices..."
+          placeholder="Search invoices..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -1075,12 +1086,12 @@ function InvoicesListView({ invoices, customers, quotes, user }) {
             return (
               <div key={inv.id} style={{
                 ...s.listRow,
-                border: effStatus === "Overdue" ? "1px solid #fed7aa" : "1px solid " + C.border,
+                border: effStatus === "Overdue" ? "1px solid #fed7aa" : "1px solid " + "#E5E9F2",
               }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   {/* NEW — invoice number */}
                   <div style={s.listRowTitle}>
-                    {inv.invoiceNumber && <span style={{ color: C.muted, fontWeight: 500, marginRight: 8, fontSize: "0.82rem" }}>{inv.invoiceNumber}</span>}
+                    {inv.invoiceNumber && <span style={{ color: "#6B7280", fontWeight: 500, marginRight: 8, fontSize: "0.82rem" }}>{inv.invoiceNumber}</span>}
                     {inv.jobName || "Untitled Job"}
                   </div>
                   <div style={s.listRowMeta}>
@@ -1092,8 +1103,8 @@ function InvoicesListView({ invoices, customers, quotes, user }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <span style={{ ...s.statusBadge, ...(STATUS_STYLE[effStatus] || STATUS_STYLE.Draft) }}>{effStatus}</span>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontWeight: 700, color: C.navy }}>{fmtCurrency(inv.total || calculateJobTotals(inv).total_with_tax)}</div>
-                    <div style={{ fontSize: "0.75rem", color: C.muted }}>
+                    <div style={{ fontWeight: 700, color: "#0B1628" }}>{fmtCurrency(inv.total || calculateJobTotals(inv).total_with_tax)}</div>
+                    <div style={{ fontSize: "0.75rem", color: "#6B7280" }}>
                       profit {fmtCurrency(calculateJobTotals(inv).profit)} · {calculateJobTotals(inv).profit_margin.toFixed(0)}%
                     </div>
                   </div>
@@ -1220,7 +1231,7 @@ function CustomersView({ user, customers, quotes, invoices, onNewQuote, onOpenQu
         <div style={{ flex: "0 0 300px", minWidth: 260 }}>
           <input
             style={{ ...s.input, marginBottom: 12 }}
-            placeholder="🔍  Search customers..."
+            placeholder="Search customers..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -1232,16 +1243,16 @@ function CustomersView({ user, customers, quotes, invoices, onNewQuote, onOpenQu
                 style={{
                   ...s.listRow,
                   cursor: "pointer",
-                  background: selected?.id === c.id ? "#eff6ff" : C.white,
-                  border: selected?.id === c.id ? `1.5px solid ${C.sky}` : `1px solid ${C.border}`,
+                  background: selected?.id === c.id ? "#eff6ff" : "#ffffff",
+                  border: selected?.id === c.id ? `1.5px solid ${"#3B82F6"}` : `1px solid ${"#E5E9F2"}`,
                   borderRadius: 12,
                   padding: "12px 16px",
                 }}
                 onClick={() => setSelected(c)}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, color: C.navy, fontSize: "0.95rem" }}>{c.name}</div>
-                  <div style={{ fontSize: "0.78rem", color: C.muted, marginTop: 2 }}>{c.phone}{c.phone && c.email ? " · " : ""}{c.email}</div>
+                  <div style={{ fontWeight: 600, color: "#0B1628", fontSize: "0.95rem" }}>{c.name}</div>
+                  <div style={{ fontSize: "0.78rem", color: "#6B7280", marginTop: 2 }}>{c.phone}{c.phone && c.email ? " · " : ""}{c.email}</div>
                 </div>
                 <button style={{ ...s.secondaryBtn, padding: "4px 10px", fontSize: "0.78rem" }} onClick={e => { e.stopPropagation(); openEdit(c); }}>Edit</button>
               </div>
@@ -1289,13 +1300,13 @@ function CustomersView({ user, customers, quotes, invoices, onNewQuote, onOpenQu
                     <div key={inv.id} style={s.listRow}>
                       <div style={{ flex: 1 }}>
                         <div style={s.listRowTitle}>
-                          {inv.invoiceNumber && <span style={{ color: C.muted, fontWeight: 500, marginRight: 6, fontSize: "0.8rem" }}>{inv.invoiceNumber}</span>}
+                          {inv.invoiceNumber && <span style={{ color: "#6B7280", fontWeight: 500, marginRight: 6, fontSize: "0.8rem" }}>{inv.invoiceNumber}</span>}
                           {inv.jobName || "Invoice"}
                         </div>
                         <div style={s.listRowMeta}>{fmtDate(inv.createdAt)}</div>
                       </div>
                       <span style={{ ...s.statusBadge, ...(STATUS_STYLE[inv.status] || STATUS_STYLE.Draft) }}>{inv.status}</span>
-                      <div style={{ fontWeight: 700, color: C.navy }}>{fmtCurrency(inv.total)}</div>
+                      <div style={{ fontWeight: 700, color: "#0B1628" }}>{fmtCurrency(inv.total)}</div>
                     </div>
                   ))}
                 </div>
@@ -1325,7 +1336,7 @@ function TemplatesView({ user, savedTemplates, onUseTemplate }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={s.pageHeader}>
         <h2 style={s.pageTitle}>Job Templates</h2>
-        <p style={{ fontSize: "0.85rem", color: C.muted }}>Start a quote from a pre-built template. Save any quote as a template from the quote editor.</p>
+        <p style={{ fontSize: "0.85rem", color: "#6B7280" }}>Start a quote from a pre-built template. Save any quote as a template from the quote editor.</p>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
@@ -1335,7 +1346,7 @@ function TemplatesView({ user, savedTemplates, onUseTemplate }) {
               <div>
                 <span style={s.sectionTitle}>{tpl.name}</span>
                 {!tpl.uid && (
-                  <span style={{ marginLeft: 8, fontSize: "0.7rem", background: "#eff6ff", color: C.sky, border: "1px solid #bfdbfe", borderRadius: 10, padding: "2px 8px" }}>Built-in</span>
+                  <span style={{ marginLeft: 8, fontSize: "0.7rem", background: "#eff6ff", color: "#3B82F6", border: "1px solid #bfdbfe", borderRadius: 10, padding: "2px 8px" }}>Built-in</span>
                 )}
               </div>
               {tpl.uid && (
@@ -1343,9 +1354,9 @@ function TemplatesView({ user, savedTemplates, onUseTemplate }) {
               )}
             </div>
             <div style={{ padding: "14px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: "0.82rem", color: C.muted }}>{tpl.jobType} · {tpl.hours}h @ ${tpl.hourlyRate}/hr</div>
-              {tpl.materialsList && <div style={{ fontSize: "0.8rem", color: C.text, lineHeight: 1.5 }}>{tpl.materialsList.substring(0, 80)}{tpl.materialsList.length > 80 ? "…" : ""}</div>}
-              {tpl.siteNotes && <div style={{ fontSize: "0.78rem", color: C.muted, fontStyle: "italic" }}>📍 {tpl.siteNotes.substring(0, 60)}…</div>}
+              <div style={{ fontSize: "0.82rem", color: "#6B7280" }}>{tpl.jobType} · {tpl.hours}h @ ${tpl.hourlyRate}/hr</div>
+              {tpl.materialsList && <div style={{ fontSize: "0.8rem", color: "#111827", lineHeight: 1.5 }}>{tpl.materialsList.substring(0, 80)}{tpl.materialsList.length > 80 ? "…" : ""}</div>}
+              {tpl.siteNotes && <div style={{ fontSize: "0.78rem", color: "#6B7280", fontStyle: "italic" }}> {tpl.siteNotes.substring(0, 60)}…</div>}
               <button style={{ ...s.primaryBtn, marginTop: 4, textAlign: "center" }} onClick={() => onUseTemplate(tpl)}>
                 Use This Template →
               </button>
@@ -1383,7 +1394,7 @@ function SettingsView({ user, settings }) {
         <h2 style={s.pageTitle}>Company Settings</h2>
       </div>
 
-      <Section title="Company Info" icon="🏢">
+      <Section title="Company Info" icon="">
         <Row>
           <Field label="Company Name">
             <input style={s.input} value={form.companyName} onChange={e => set("companyName", e.target.value)} placeholder="Your Plumbing Co." />
@@ -1407,11 +1418,11 @@ function SettingsView({ user, settings }) {
           </Field>
         </Row>
         <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 9, padding: "10px 14px", fontSize: "0.8rem", color: "#92400e" }}>
-          ⚠ Ontario requires your HST number on any invoice over $30. This number will appear on all your PDFs automatically.
+          Ontario requires your HST number on any invoice over $30. This will appear on all your PDFs automatically.
         </div>
       </Section>
 
-      <Section title="Quote Defaults" icon="⚙️">
+      <Section title="Quote Defaults" icon="◎">
         <Row>
           <Field label="Default Hourly Rate ($)">
             <input style={s.input} type="number" value={form.defaultHourlyRate} onChange={e => set("defaultHourlyRate", Number(e.target.value))} />
@@ -1436,11 +1447,11 @@ function SettingsView({ user, settings }) {
       </Section>
 
       <button
-        style={{ ...s.primaryBtn, alignSelf: "flex-start", padding: "12px 28px", fontSize: "0.95rem", background: saved ? C.green : C.navy }}
+        style={{ ...s.primaryBtn, alignSelf: "flex-start", padding: "12px 28px", fontSize: "0.95rem", background: saved ? "#059669" : "#0B1628" }}
         onClick={handleSave}
         disabled={saving}
       >
-        {saving ? "Saving…" : saved ? "✓ Settings Saved!" : "Save Settings"}
+        {saving ? "Saving…" : saved ? "Settings Saved!" : "Save Settings"}
       </button>
     </div>
   );
@@ -1473,32 +1484,32 @@ function PublicQuoteApproval({ quoteId }) {
   };
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", background: C.light }}>
-      <div style={{ color: C.muted }}>Loading quote…</div>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif", background: "#F4F6FA" }}>
+      <div style={{ color: "#6B7280" }}>Loading quote…</div>
     </div>
   );
 
   if (!quote) return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", background: C.light }}>
-      <div style={{ color: C.danger }}>Quote not found.</div>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif", background: "#F4F6FA" }}>
+      <div style={{ color: "#DC2626" }}>Quote not found.</div>
     </div>
   );
 
   if (action === "approved") return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", background: "#f0fdf4" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif", background: "#f0fdf4" }}>
       <div style={{ textAlign: "center", padding: 40 }}>
-        <div style={{ fontSize: "3rem", marginBottom: 16 }}>✅</div>
-        <h2 style={{ fontFamily: "'DM Serif Display', serif", color: "#15803d", fontSize: "1.8rem" }}>Quote Approved!</h2>
+        
+        <h2 style={{ fontFamily: "'Sora', sans-serif", color: "#15803d", fontSize: "1.8rem" }}>Quote Approved!</h2>
         <p style={{ color: "#16a34a", marginTop: 8 }}>Thank you. Your contractor will be in touch shortly.</p>
       </div>
     </div>
   );
 
   if (action === "declined") return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", background: "#fef2f2" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif", background: "#fef2f2" }}>
       <div style={{ textAlign: "center", padding: 40 }}>
-        <div style={{ fontSize: "3rem", marginBottom: 16 }}>❌</div>
-        <h2 style={{ fontFamily: "'DM Serif Display', serif", color: "#dc2626", fontSize: "1.8rem" }}>Quote Declined</h2>
+        
+        <h2 style={{ fontFamily: "'Sora', sans-serif", color: "#dc2626", fontSize: "1.8rem" }}>Quote Declined</h2>
         <p style={{ color: "#dc2626", marginTop: 8 }}>Your contractor has been notified.</p>
       </div>
     </div>
@@ -1507,25 +1518,25 @@ function PublicQuoteApproval({ quoteId }) {
   const alreadyActioned = quote.status === "Approved" || quote.status === "Rejected" || quote.status === "Expired";
 
   return (
-    <div style={{ minHeight: "100vh", background: C.light, fontFamily: "'DM Sans', sans-serif", padding: "40px 20px" }}>
+    <div style={{ minHeight: "100vh", background: "#F4F6FA", fontFamily: "'Inter', sans-serif", padding: "40px 20px" }}>
       <div style={{ maxWidth: 620, margin: "0 auto" }}>
         {/* Header */}
-        <div style={{ background: C.navy, borderRadius: 16, padding: "24px 28px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ background: "#0B1628", borderRadius: 16, padding: "24px 28px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.5rem", color: C.white }}>
-              Plumb<span style={{ color: C.sky }}>Quote</span> 3
+            <div style={{ fontFamily: "'Sora', sans-serif", fontSize: "1.5rem", color: "#ffffff" }}>
+              Plumb<span style={{ color: "#3B82F6" }}>Quote</span> 3
             </div>
             <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.8rem", marginTop: 4 }}>Quote for your review</div>
           </div>
           {quote.quoteNumber && (
-            <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px 16px", color: C.accent, fontWeight: 700, fontSize: "1rem" }}>
+            <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "8px 16px", color: "#F59E0B", fontWeight: 700, fontSize: "1rem" }}>
               {quote.quoteNumber}
             </div>
           )}
         </div>
 
         {/* Quote details */}
-        <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, overflow: "hidden", marginBottom: 16 }}>
+        <div style={{ background: "#ffffff", borderRadius: 16, border: `1px solid ${"#E5E9F2"}`, overflow: "hidden", marginBottom: 16 }}>
           <div style={{ ...s.sectionHeader }}>
             <span style={s.sectionTitle}>Quote Details</span>
           </div>
@@ -1539,18 +1550,18 @@ function PublicQuoteApproval({ quoteId }) {
         </div>
 
         {/* Totals */}
-        <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, padding: "20px 24px", marginBottom: 16 }}>
+        <div style={{ background: "#ffffff", borderRadius: 16, border: `1px solid ${"#E5E9F2"}`, padding: "20px 24px", marginBottom: 16 }}>
           <div style={s.summaryLine}><span>Subtotal</span><span>{fmtCurrency(quote.subtotal)}</span></div>
-          <div style={{ ...s.summaryLine, color: C.sky }}><span>HST (13%)</span><span>{fmtCurrency(quote.hst)}</span></div>
+          <div style={{ ...s.summaryLine, color: "#3B82F6" }}><span>HST (13%)</span><span>{fmtCurrency(quote.hst)}</span></div>
           <div style={s.summaryDivider} />
           <div style={s.summaryTotal}><span>Total</span><span>{fmtCurrency(quote.total)}</span></div>
         </div>
 
         {/* Action buttons */}
         {alreadyActioned ? (
-          <div style={{ textAlign: "center", padding: "20px", background: C.white, borderRadius: 16, border: `1px solid ${C.border}` }}>
+          <div style={{ textAlign: "center", padding: "20px", background: "#ffffff", borderRadius: 16, border: `1px solid ${"#E5E9F2"}` }}>
             <span style={{ ...s.statusBadge, ...STATUS_STYLE[quote.status], fontSize: "0.9rem", padding: "8px 18px" }}>{quote.status}</span>
-            <p style={{ marginTop: 12, color: C.muted, fontSize: "0.85rem" }}>This quote has already been {quote.status.toLowerCase()}.</p>
+            <p style={{ marginTop: 12, color: "#6B7280", fontSize: "0.85rem" }}>This quote has already been {quote.status.toLowerCase()}.</p>
           </div>
         ) : (
           <div style={{ display: "flex", gap: 12 }}>
@@ -1558,13 +1569,13 @@ function PublicQuoteApproval({ quoteId }) {
               style={{ ...s.primaryBtn, flex: 1, padding: "16px", fontSize: "1rem", background: "#16a34a", textAlign: "center" }}
               onClick={handleApprove}
             >
-              ✓ Approve Quote
+               Approve Quote
             </button>
             <button
               style={{ ...s.dangerBtn, flex: 1, padding: "16px", fontSize: "1rem", textAlign: "center" }}
               onClick={handleDecline}
             >
-              ✕ Decline
+              x Decline
             </button>
           </div>
         )}
@@ -1681,7 +1692,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
   const handleSave = async () => {
     // NEW — warn on low margin before saving
     if (marginWarning && profit > 0) {
-      const ok = window.confirm(`⚠ This job is only ${profitPct}% margin. Are you sure you want to save?`);
+      const ok = window.confirm(`This job is only ${profitPct}% margin. Are you sure you want to save?`);
       if (!ok) return;
     }
     setSaving(true);
@@ -1899,18 +1910,18 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 18px", textAlign: "center" }}>
             <div style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", marginBottom: 3 }}>PROFIT</div>
-            <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.3rem", color: profit >= 0 ? "#4ade80" : "#f87171" }}>
+            <div style={{ fontFamily: "'Sora', sans-serif", fontSize: "1.3rem", color: profit >= 0 ? "#4ade80" : "#f87171" }}>
               {fmtCurrency(profit)}
             </div>
             <div style={{ fontSize: "0.7rem", color: profit >= 0 ? "#4ade80" : "#f87171", marginTop: 2 }}>
               {profitPct}% margin
             </div>
             {marginWarning && profit > 0 && (
-              <div style={{ fontSize: "0.7rem", color: "#fbbf24", marginTop: 2 }}>⚠ Low margin</div>
+              <div style={{ fontSize: "0.7rem", color: "#fbbf24", marginTop: 2 }}>Low margin</div>
             )}
           </div>
           <button style={pdfSuccess ? { ...s.pdfBtn, ...s.pdfBtnSuccess } : s.pdfBtn} onClick={generatePDF}>
-            {pdfSuccess ? "✓ Downloaded!" : "⬇ Download PDF"}
+            {pdfSuccess ? "Downloaded!" : "Download PDF"}
           </button>
         </div>
       </div>
@@ -1918,7 +1929,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
       {/* NEW — low margin warning banner */}
       {marginWarning && profit > 0 && (
         <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "12px 18px", fontSize: "0.85rem", color: "#c2410c" }}>
-          ⚠ <strong>Low margin warning:</strong> This job is {profitPct}% margin. Consider reviewing your rates or material costs before sending.
+           <strong>Low margin warning:</strong> This job is {profitPct}% margin. Consider reviewing your rates or material costs before sending.
         </div>
       )}
 
@@ -1958,29 +1969,29 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button style={saveSuccess ? { ...s.primaryBtn, background: C.green } : s.primaryBtn} onClick={handleSave} disabled={saving}>
-              {saving ? "Saving…" : saveSuccess ? "✓ Saved!" : "💾 Save Quote"}
+            <button style={saveSuccess ? { ...s.primaryBtn, background: "#059669" } : s.primaryBtn} onClick={handleSave} disabled={saving}>
+              {saving ? "Saving…" : saveSuccess ? "Saved!" : "Save Quote"}
             </button>
             {quoteData?.id && (
               <button style={s.secondaryBtn} onClick={handleConvert}>
-                🧾 Convert to Invoice
+                Convert to Invoice
               </button>
             )}
             {/* NEW — share link button */}
             <button style={s.secondaryBtn} onClick={copyShareLink}>
-              🔗 {shareUrl ? "Copy Share Link" : "Save First to Share"}
+              {shareUrl ? "Copy Share Link" : "Save First to Share"}
             </button>
             {/* NEW — save as template */}
             <button style={s.secondaryBtn} onClick={() => { setTemplateName(jobName || ""); setShowSaveTemplateModal(true); }}>
-              📋 Save as Template
+              Save as Template
             </button>
           </div>
 
           {/* NEW — share link display */}
           {shareUrl && (
-            <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 9, padding: "10px 14px", fontSize: "0.8rem", color: C.blue }}>
+            <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 9, padding: "10px 14px", fontSize: "0.8rem", color: "#2563EB" }}>
               <strong>Customer approval link:</strong> Send this URL to your customer — they can approve or decline without logging in.
-              <div style={{ marginTop: 6, fontFamily: "monospace", fontSize: "0.75rem", wordBreak: "break-all", color: C.sky }}>
+              <div style={{ marginTop: 6, fontFamily: "monospace", fontSize: "0.75rem", wordBreak: "break-all", color: "#3B82F6" }}>
                 {shareUrl}
               </div>
             </div>
@@ -1988,7 +1999,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
 
           {/* NEW — save as template modal (inline) */}
           {showSaveTemplateModal && (
-            <div style={{ background: C.light, borderRadius: 10, padding: "16px", border: `1px solid ${C.border}` }}>
+            <div style={{ background: "#F4F6FA", borderRadius: 10, padding: "16px", border: `1px solid ${"#E5E9F2"}` }}>
               <div style={{ fontWeight: 600, marginBottom: 10, fontSize: "0.9rem" }}>Save as Template</div>
               <div style={{ display: "flex", gap: 10 }}>
                 <input
@@ -2008,7 +2019,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
       </div>
 
       {/* ── JOB DETAILS */}
-      <Section title="Job Details" icon="📋">
+      <Section title="Job Details" icon="▤">
         <Row>
           <Field label="Company Name">
             <input style={s.input} value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Your company name" />
@@ -2025,7 +2036,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
           </Field>
           <Field label="Upload Logo">
             <label style={s.fileLabel}>
-              {logo ? "✓ Logo uploaded" : "Choose file"}
+              {logo ? "Logo uploaded" : "Choose file"}
               <input type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: "none" }} />
             </label>
           </Field>
@@ -2035,9 +2046,9 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
       {/* ── ROUGH-IN */}
       {jobType === "Rough In" && (
         <>
-          <Section title="Rough-In — Piping" icon="🔩">
+          <Section title="Rough-In — Piping" icon="">
             <div style={s.roughDisclaimer}>
-              ⚠ Prices auto-fill from Ontario supply baselines. All values are editable.
+              Prices auto-fill from Ontario supply baselines. All values are editable.
             </div>
             {pipes.map((p, i) => (
               <div key={i} style={s.roughCard}>
@@ -2050,7 +2061,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
                       {PIPE_SIZES.map(sz => <option key={sz}>{sz}</option>)}
                     </select>
                   </div>
-                  <button style={{ ...s.removeBtn, flexShrink: 0, opacity: pipes.length === 1 ? 0.3 : 1, minWidth: 36, minHeight: 36 }} onClick={() => removePipeRow(i)} disabled={pipes.length === 1}>✕</button>
+                  <button style={{ ...s.removeBtn, flexShrink: 0, opacity: pipes.length === 1 ? 0.3 : 1, minWidth: 36, minHeight: 36 }} onClick={() => removePipeRow(i)} disabled={pipes.length === 1}>×</button>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                   <div>
@@ -2075,9 +2086,9 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
             <div style={s.subtotalRow}><span>Piping Subtotal</span><span style={s.subtotalVal}>${pipesTotal.toFixed(2)}</span></div>
           </Section>
 
-          <Section title="Rough-In — Fittings" icon="🔧">
+          <Section title="Rough-In — Fittings" icon="">
             <div style={s.roughDisclaimer}>
-              ⚠ Copper fittings are significantly higher than PVC/ABS. Prices auto-update on material/size change.
+              Copper fittings are significantly higher than PVC/ABS. Prices auto-update on material/size change.
             </div>
             {fittings.map((f, i) => (
               <div key={i} style={s.roughCard}>
@@ -2116,7 +2127,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
             <div style={s.subtotalRow}><span>Fittings Subtotal</span><span style={s.subtotalVal}>${fittingsTotal.toFixed(2)}</span></div>
           </Section>
 
-          <Section title="Rough-In — Labour" icon="👷">
+          <Section title="Rough-In — Labour" icon="">
             <Row>
               <Field label="Labour Cost ($)">
                 <input style={s.input} type="number" min="0" placeholder="0.00" value={roughLabour || ""} onChange={(e) => setRoughLabour(e.target.value)} />
@@ -2131,7 +2142,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
 
       {/* ── LABOUR */}
       {jobType !== "Rough In" && (
-        <Section title="Labour" icon="🔧">
+        <Section title="Labour" icon="">
           {jobType === "Fixture Install" ? (
             <>
               {fixtures.map((f, i) => (
@@ -2139,7 +2150,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <input style={{ ...s.input, flex: 1 }} placeholder="Fixture (e.g. Toilet)" value={f.name} onChange={(e) => updateFixture(i, "name", e.target.value)} />
                     {fixtures.length > 1 && (
-                      <button style={{ ...s.removeBtn, flexShrink: 0, minWidth: 36, minHeight: 36 }} onClick={() => removeFixture(i)}>✕</button>
+                      <button style={{ ...s.removeBtn, flexShrink: 0, minWidth: 36, minHeight: 36 }} onClick={() => removeFixture(i)}>×</button>
                     )}
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, alignItems: "end" }}>
@@ -2179,7 +2190,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
 
       {/* ── MATERIALS */}
       {jobType !== "Rough In" && (
-        <Section title="Materials" icon="🪛">
+        <Section title="Materials" icon="">
           <Row>
             <Field label="Material Cost ($)">
               <input style={s.input} type="number" value={materialCost} onChange={(e) => setMaterialCost(Number(e.target.value))} />
@@ -2195,7 +2206,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
       )}
 
       {/* NEW — Subcontractor / Helper Section */}
-      <Section title="Subcontractor / Helper Cost" icon="👥">
+      <Section title="Subcontractor / Helper Cost" icon="">
         <Row>
           <Field label="Subcontractor / Helper Cost ($)">
             <input
@@ -2209,7 +2220,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
             />
           </Field>
           <Field label="">
-            <div style={{ ...s.calcDisplay, fontSize: "0.8rem", color: C.muted, padding: "10px 14px" }}>
+            <div style={{ ...s.calcDisplay, fontSize: "0.8rem", color: "#6B7280", padding: "10px 14px" }}>
               This cost is tracked internally and reduces your profit. It does not appear on the customer's quote.
             </div>
           </Field>
@@ -2221,7 +2232,7 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
         <div style={s.summaryTitle}>Quote Summary</div>
 
         {/* Revenue breakdown */}
-        <div style={{ ...s.summaryLine, fontSize: "0.82rem", color: C.muted, fontWeight: 600, paddingBottom: 4 }}>
+        <div style={{ ...s.summaryLine, fontSize: "0.82rem", color: "#6B7280", fontWeight: 600, paddingBottom: 4 }}>
           <span>REVENUE BREAKDOWN</span>
         </div>
         <div style={s.summaryLine}>
@@ -2234,23 +2245,23 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
         </div>
 
         {/* Cost breakdown */}
-        <div style={{ ...s.summaryLine, fontSize: "0.82rem", color: C.muted, fontWeight: 600, paddingBottom: 4, paddingTop: 8 }}>
+        <div style={{ ...s.summaryLine, fontSize: "0.82rem", color: "#6B7280", fontWeight: 600, paddingBottom: 4, paddingTop: 8 }}>
           <span>COST BREAKDOWN</span>
         </div>
         <div style={s.summaryLine}>
           <span>Material cost (what you paid)</span>
-          <span style={{ color: C.danger }}>−{fmtCurrency(calc.material_cost)}</span>
+          <span style={{ color: "#DC2626" }}>−{fmtCurrency(calc.material_cost)}</span>
         </div>
         {Number(subContractorCost) > 0 && (
-          <div style={{ ...s.summaryLine, color: C.muted, fontStyle: "italic" }}>
+          <div style={{ ...s.summaryLine, color: "#6B7280", fontStyle: "italic" }}>
             <span>Subcontractor (internal)</span>
-            <span style={{ color: C.danger }}>−{fmtCurrency(subContractorCost)}</span>
+            <span style={{ color: "#DC2626" }}>−{fmtCurrency(subContractorCost)}</span>
           </div>
         )}
 
-        <div style={{ borderTop: "1.5px solid " + C.border, marginTop: 8 }} />
+        <div style={{ borderTop: "1.5px solid " + "#E5E9F2", marginTop: 8 }} />
         <div style={s.summaryLine}><span>Subtotal</span><span>{fmtCurrency(calc.total_price)}</span></div>
-        <div style={{ ...s.summaryLine, color: C.sky }}><span>HST (13%)</span><span>{fmtCurrency(calc.hst)}</span></div>
+        <div style={{ ...s.summaryLine, color: "#3B82F6" }}><span>HST (13%)</span><span>{fmtCurrency(calc.hst)}</span></div>
         <div style={s.summaryDivider} />
         <div style={s.summaryTotal}><span>Total</span><span>{fmtCurrency(calc.total_with_tax)}</span></div>
 
@@ -2262,10 +2273,10 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
           display: "flex", justifyContent: "space-between", alignItems: "center",
         }}>
           <div>
-            <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: C.muted, marginBottom: 2 }}>
-              Profit {marginWarning && profit > 0 ? "— ⚠ Low margin" : ""}
+            <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "#6B7280", marginBottom: 2 }}>
+              Profit {marginWarning && profit > 0 ? "— Low margin" : ""}
             </div>
-            <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.4rem", color: profit >= 0 ? (marginWarning ? "#c2410c" : "#16a34a") : C.danger }}>
+            <div style={{ fontFamily: "'Sora', sans-serif", fontSize: "1.4rem", color: profit >= 0 ? (marginWarning ? "#c2410c" : "#16a34a") : "#DC2626" }}>
               {fmtCurrency(profit)}
             </div>
           </div>
@@ -2273,8 +2284,8 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
             background: profit >= 0 ? (marginWarning ? "#fed7aa" : "#bbf7d0") : "#fecaca",
             borderRadius: 8, padding: "8px 14px", textAlign: "center",
           }}>
-            <div style={{ fontSize: "0.7rem", color: C.muted, marginBottom: 2 }}>MARGIN</div>
-            <div style={{ fontWeight: 700, fontSize: "1.1rem", color: profit >= 0 ? (marginWarning ? "#c2410c" : "#16a34a") : C.danger }}>
+            <div style={{ fontSize: "0.7rem", color: "#6B7280", marginBottom: 2 }}>MARGIN</div>
+            <div style={{ fontWeight: 700, fontSize: "1.1rem", color: profit >= 0 ? (marginWarning ? "#c2410c" : "#16a34a") : "#DC2626" }}>
               {profitPct}%
             </div>
           </div>
@@ -2282,10 +2293,10 @@ function QuoteEditor({ user, quoteData, customers, quotes, settings, onSaved, on
 
         <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
           <button style={pdfSuccess ? { ...s.pdfBtnFull, ...s.pdfBtnSuccess } : s.pdfBtnFull} onClick={generatePDF}>
-            {pdfSuccess ? "✓ PDF Downloaded!" : "⬇ Download Quote PDF"}
+            {pdfSuccess ? "PDF Downloaded!" : "Download Quote PDF"}
           </button>
-          <button style={{ ...s.pdfBtnFull, background: C.blue, boxShadow: "none", flex: "0 1 auto", padding: "14px 20px" }} onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : saveSuccess ? "✓ Saved!" : "💾 Save"}
+          <button style={{ ...s.pdfBtnFull, background: "#2563EB", boxShadow: "none", flex: "0 1 auto", padding: "14px 20px" }} onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : saveSuccess ? "Saved!" : "Save"}
           </button>
         </div>
       </div>
@@ -2305,7 +2316,7 @@ function QuoteRow({ q, custName, onClick, onDuplicate, showDuplicate }) {
     <div style={{ ...s.listRow, cursor: "pointer" }} onClick={onClick}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={s.listRowTitle}>
-          {q.quoteNumber && <span style={{ color: C.muted, fontWeight: 500, marginRight: 8, fontSize: "0.8rem" }}>{q.quoteNumber}</span>}
+          {q.quoteNumber && <span style={{ color: "#6B7280", fontWeight: 500, marginRight: 8, fontSize: "0.8rem" }}>{q.quoteNumber}</span>}
           {q.jobName || q.jobType || "Untitled"}
         </div>
         <div style={s.listRowMeta}>
@@ -2316,8 +2327,8 @@ function QuoteRow({ q, custName, onClick, onDuplicate, showDuplicate }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         <span style={{ ...s.statusBadge, ...(STATUS_STYLE[q.status] || STATUS_STYLE.Draft) }}>{q.status || "Draft"}</span>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontWeight: 700, color: C.navy, fontSize: "0.95rem" }}>{fmtCurrency(q.total || calc.total_with_tax)}</div>
-          <div style={{ fontSize: "0.73rem", color: calc.profit_margin < 20 ? C.danger : C.muted }}>
+          <div style={{ fontWeight: 700, color: "#0B1628", fontSize: "0.95rem" }}>{fmtCurrency(q.total || calc.total_with_tax)}</div>
+          <div style={{ fontSize: "0.73rem", color: calc.profit_margin < 20 ? "#DC2626" : "#6B7280" }}>
             {fmtCurrency(calc.profit)} · {calc.profit_margin.toFixed(0)}%
           </div>
         </div>
@@ -2332,7 +2343,7 @@ function QuoteRow({ q, custName, onClick, onDuplicate, showDuplicate }) {
 }
 
 function EmptyState({ text }) {
-  return <div style={{ textAlign: "center", padding: "28px 0", color: C.muted, fontSize: "0.88rem" }}>{text}</div>;
+  return <div style={{ textAlign: "center", padding: "28px 0", color: "#6B7280", fontSize: "0.88rem" }}>{text}</div>;
 }
 
 function Section({ title, icon, children }) {
@@ -2362,122 +2373,122 @@ function Field({ label, children }) {
 
 const s = {
   // ── Login
-  loginWrap: { minHeight: "100vh", background: "linear-gradient(135deg, #0d1f3c 0%, #1a4b8c 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Sans', sans-serif", padding: 20 },
-  loginCard: { background: "#ffffff", borderRadius: 20, padding: "40px 28px", maxWidth: 420, width: "100%", textAlign: "center", boxShadow: "0 24px 80px rgba(0,0,0,0.25)" },
-  loginIcon: { width: 64, height: 64, background: "#0d1f3c", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" },
-  loginTitle: { fontFamily: "'DM Serif Display', serif", fontSize: "2rem", color: "#0d1f3c", margin: "0 0 8px" },
-  loginSub: { fontSize: "0.95rem", color: "#637592", margin: "0 0 32px" },
-  googleBtn: { display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: "16px 20px", background: "#ffffff", border: "1.5px solid #d4e1f5", borderRadius: 12, fontSize: "1rem", fontWeight: 600, color: "#2a3a52", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", fontFamily: "'DM Sans', sans-serif" },
-  loginFooter: { marginTop: 24, fontSize: "0.8rem", color: "#637592" },
+  loginWrap: { minHeight: "100vh", background: "#0B1628", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', sans-serif", padding: 20 },
+  loginCard: { background: "#ffffff", borderRadius: 24, padding: "44px 32px", maxWidth: 420, width: "100%", textAlign: "center", boxShadow: "0 32px 80px rgba(0,0,0,0.35)" },
+  loginIcon: { width: 64, height: 64, background: "#0B1628", borderRadius: 18, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" },
+  loginTitle: { fontFamily: "'Sora', sans-serif", fontSize: "2rem", fontWeight: 700, color: "#0B1628", margin: "0 0 8px" },
+  loginSub: { fontSize: "0.95rem", color: "#6B7280", margin: "0 0 32px", lineHeight: 1.5 },
+  googleBtn: { display: "flex", alignItems: "center", justifyContent: "center", width: "100%", padding: "15px 20px", background: "#ffffff", border: "1.5px solid #E5E9F2", borderRadius: 12, fontSize: "1rem", fontWeight: 600, color: "#111827", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", fontFamily: "'Inter', sans-serif" },
+  loginFooter: { marginTop: 24, fontSize: "0.8rem", color: "#9CA3AF" },
 
   // ── App shell
-  appWrap: { minHeight: "100vh", background: "#f0f5fc", fontFamily: "'DM Sans', sans-serif", color: "#2a3a52" },
+  appWrap: { minHeight: "100vh", background: "#F4F6FA", fontFamily: "'Inter', sans-serif", color: "#111827" },
 
   // ── Desktop header
-  header: { background: "#ffffff", borderBottom: "1px solid #d4e1f5", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 12px rgba(13,31,60,0.07)", gap: 12 },
+  header: { background: "#0B1628", padding: "0 28px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, gap: 12 },
 
   // ── Mobile header
-  mobileHeader: { background: "#ffffff", borderBottom: "1px solid #d4e1f5", padding: "0 16px", height: 56, display: "none", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 1px 8px rgba(13,31,60,0.07)" },
+  mobileHeader: { background: "#0B1628", padding: "0 16px", height: 54, display: "none", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 },
 
   headerLeft: { display: "flex", alignItems: "center", gap: 10 },
-  headerIcon: { width: 34, height: 34, background: "#0d1f3c", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  headerTitle: { fontFamily: "'DM Serif Display', serif", fontSize: "1.15rem", color: "#0d1f3c" },
+  headerIcon: { width: 32, height: 32, background: "#1D3461", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  headerTitle: { fontFamily: "'Sora', sans-serif", fontSize: "1.1rem", fontWeight: 700, color: "#fff", letterSpacing: "-0.2px" },
   headerRight: { display: "flex", alignItems: "center", gap: 10 },
-  avatar: { width: 34, height: 34, borderRadius: "50%", background: "#0d1f3c", color: "#f5a623", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'DM Serif Display', serif", fontSize: "1rem", flexShrink: 0 },
-  logoutBtn: { background: "transparent", border: "1px solid #d4e1f5", borderRadius: 8, padding: "6px 12px", fontSize: "0.8rem", color: "#637592", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" },
+  avatar: { width: 32, height: 32, borderRadius: "50%", background: "#1D3461", color: "#F59E0B", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Sora', sans-serif", fontSize: "0.9rem", fontWeight: 700, flexShrink: 0 },
+  logoutBtn: { background: "transparent", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, padding: "6px 12px", fontSize: "0.78rem", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap" },
 
   // ── Desktop nav
-  nav: { display: "flex", gap: 4, flexWrap: "nowrap", overflow: "hidden" },
-  navBtn: { background: "transparent", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: "0.82rem", fontWeight: 500, color: "#637592", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", display: "flex", alignItems: "center", whiteSpace: "nowrap" },
-  navBtnActive: { background: "#f0f5fc", color: "#0d1f3c", fontWeight: 700 },
+  nav: { display: "flex", gap: 2, flexWrap: "nowrap", overflow: "hidden" },
+  navBtn: { background: "transparent", border: "none", borderRadius: 8, padding: "8px 12px", fontSize: "0.82rem", fontWeight: 500, color: "rgba(255,255,255,0.55)", cursor: "pointer", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", whiteSpace: "nowrap", transition: "color 0.15s" },
+  navBtnActive: { background: "rgba(255,255,255,0.1)", color: "#ffffff", fontWeight: 600 },
 
   // ── Mobile bottom tab bar
-  bottomNav: { display: "none", position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200, background: "#ffffff", borderTop: "1px solid #d4e1f5", paddingBottom: "env(safe-area-inset-bottom, 0px)", boxShadow: "0 -2px 16px rgba(13,31,60,0.08)" },
-  bottomTab: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "10px 4px 8px", background: "transparent", border: "none", cursor: "pointer", color: "#637592", fontFamily: "'DM Sans', sans-serif", minHeight: 56 },
-  bottomTabActive: { color: "#0d1f3c" },
+  bottomNav: { display: "none", position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 200, background: "#ffffff", borderTop: "1px solid #E5E9F2", paddingBottom: "env(safe-area-inset-bottom, 0px)" },
+  bottomTab: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "8px 4px 8px", background: "transparent", border: "none", cursor: "pointer", color: "#9CA3AF", fontFamily: "'Inter', sans-serif", minHeight: 54 },
+  bottomTabActive: { color: "#0B1628" },
 
   // ── More drawer
-  moreDrawerOverlay: { position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.35)" },
+  moreDrawerOverlay: { position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.4)" },
   moreDrawer: { position: "absolute", bottom: 0, left: 0, right: 0, background: "#fff", borderRadius: "20px 20px 0 0", paddingBottom: "env(safe-area-inset-bottom, 0px)" },
-  moreDrawerItem: { display: "flex", alignItems: "center", width: "100%", padding: "16px 20px", background: "transparent", border: "none", borderBottom: "1px solid #f0f5fc", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", textAlign: "left" },
+  moreDrawerItem: { display: "flex", alignItems: "center", width: "100%", padding: "16px 20px", background: "transparent", border: "none", borderBottom: "1px solid #F9FAFB", cursor: "pointer", fontFamily: "'Inter', sans-serif", textAlign: "left" },
 
   // ── Main content
-  main: { maxWidth: 900, margin: "0 auto", padding: "20px 16px 100px", display: "flex", flexDirection: "column", gap: 16 },
+  main: { maxWidth: 900, margin: "0 auto", padding: "20px 16px 100px", display: "flex", flexDirection: "column", gap: 14 },
 
   // ── Total banner
-  totalBanner: { background: "#0d1f3c", borderRadius: 16, padding: "20px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14, boxShadow: "0 8px 32px rgba(13,31,60,0.18)" },
-  totalLabel: { fontSize: "0.72rem", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: 4 },
-  totalAmount: { fontFamily: "'DM Serif Display', serif", fontSize: "2.4rem", color: "#ffffff", lineHeight: 1 },
-  pdfBtn: { background: "#f5a623", color: "#0d1f3c", border: "none", borderRadius: 10, padding: "13px 20px", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(245,166,35,0.4)", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap" },
-  pdfBtnSuccess: { background: "#22c55e", boxShadow: "0 4px 16px rgba(34,197,94,0.4)" },
+  totalBanner: { background: "#0B1628", borderRadius: 16, padding: "20px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 },
+  totalLabel: { fontSize: "0.68rem", fontWeight: 500, letterSpacing: "0.07em", textTransform: "uppercase", color: "rgba(255,255,255,0.4)", marginBottom: 4 },
+  totalAmount: { fontFamily: "'Sora', sans-serif", fontSize: "2.4rem", fontWeight: 700, color: "#ffffff", lineHeight: 1, letterSpacing: "-0.5px" },
+  pdfBtn: { background: "#F59E0B", color: "#111827", border: "none", borderRadius: 12, padding: "12px 20px", fontSize: "0.9rem", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif", whiteSpace: "nowrap" },
+  pdfBtnSuccess: { background: "#059669" },
 
-  // ── Sections
-  section: { background: "#ffffff", borderRadius: 16, border: "1px solid #d4e1f5", overflow: "hidden", boxShadow: "0 2px 12px rgba(13,31,60,0.04)" },
-  sectionHeader: { display: "flex", alignItems: "center", gap: 10, padding: "14px 18px", borderBottom: "1px solid #d4e1f5", background: "#f0f5fc" },
-  sectionIcon: { fontSize: "1rem" },
-  sectionTitle: { fontWeight: 600, fontSize: "0.85rem", letterSpacing: "0.05em", textTransform: "uppercase", color: "#0d1f3c" },
-  sectionBody: { padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12 },
+  // ── Sections / cards
+  section: { background: "#ffffff", borderRadius: 14, border: "1px solid #E5E9F2", overflow: "hidden" },
+  sectionHeader: { display: "flex", alignItems: "center", gap: 8, padding: "13px 18px", borderBottom: "1px solid #F3F4F6", background: "#ffffff" },
+  sectionIcon: { fontSize: "0.95rem" },
+  sectionTitle: { fontWeight: 600, fontSize: "0.8rem", letterSpacing: "0.06em", textTransform: "uppercase", color: "#374151" },
+  sectionBody: { padding: "14px 18px", display: "flex", flexDirection: "column", gap: 12 },
 
   // ── Form layout
   row: { display: "flex", gap: 12, flexWrap: "wrap" },
   field: { display: "flex", flexDirection: "column", gap: 5, flex: 1, minWidth: 130 },
-  label: { fontSize: "0.75rem", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "#637592" },
+  label: { fontSize: "0.72rem", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "#6B7280" },
 
-  // ── Inputs — 44px min touch target, 16px font prevents iOS zoom
-  input: { padding: "12px 12px", border: "1.5px solid #d4e1f5", borderRadius: 10, fontSize: "16px", color: "#2a3a52", background: "#ffffff", outline: "none", fontFamily: "'DM Sans', sans-serif", width: "100%", boxSizing: "border-box", minHeight: 44, WebkitAppearance: "none" },
-  fileLabel: { display: "block", padding: "12px 14px", border: "1.5px dashed #d4e1f5", borderRadius: 10, fontSize: "0.9rem", color: "#2e7dd1", cursor: "pointer", textAlign: "center", fontWeight: 500, background: "#f0f5fc", minHeight: 44 },
-  textarea: { padding: "12px 14px", border: "1.5px solid #d4e1f5", borderRadius: 10, fontSize: "16px", color: "#2a3a52", background: "#ffffff", outline: "none", fontFamily: "'DM Sans', sans-serif", width: "100%", minHeight: 80, resize: "vertical", boxSizing: "border-box" },
-  calcDisplay: { padding: "12px 14px", background: "#f0f5fc", border: "1.5px solid #d4e1f5", borderRadius: 10, fontSize: "1rem", fontWeight: 600, color: "#0d1f3c", minHeight: 44 },
+  // ── Inputs
+  input: { padding: "11px 13px", border: "1.5px solid #E5E9F2", borderRadius: 10, fontSize: "16px", color: "#111827", background: "#F9FAFB", outline: "none", fontFamily: "'Inter', sans-serif", width: "100%", boxSizing: "border-box", minHeight: 44, WebkitAppearance: "none" },
+  fileLabel: { display: "block", padding: "11px 14px", border: "1.5px dashed #E5E9F2", borderRadius: 10, fontSize: "0.9rem", color: "#2563EB", cursor: "pointer", textAlign: "center", fontWeight: 500, background: "#F9FAFB", minHeight: 44 },
+  textarea: { padding: "11px 13px", border: "1.5px solid #E5E9F2", borderRadius: 10, fontSize: "16px", color: "#111827", background: "#F9FAFB", outline: "none", fontFamily: "'Inter', sans-serif", width: "100%", minHeight: 80, resize: "vertical", boxSizing: "border-box" },
+  calcDisplay: { padding: "11px 13px", background: "#F3F4F6", border: "1.5px solid #E5E9F2", borderRadius: 10, fontSize: "1rem", fontWeight: 600, color: "#111827", minHeight: 44, display: "flex", alignItems: "center" },
 
-  // ── Rough-in mobile card layout (replaces horizontal rows)
-  roughCard: { background: "#f8fafd", border: "1px solid #d4e1f5", borderRadius: 12, padding: "12px", display: "flex", flexDirection: "column", gap: 10 },
+  // ── Rough-in mobile card layout
+  roughCard: { background: "#F9FAFB", border: "1px solid #E5E9F2", borderRadius: 12, padding: "12px", display: "flex", flexDirection: "column", gap: 10 },
   roughCardHeader: { display: "flex", gap: 8, alignItems: "center" },
-  roughFieldLabel: { fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", color: "#637592", marginBottom: 4 },
-  roughCardTotal: { fontSize: "0.88rem", color: "#637592", paddingTop: 4, borderTop: "1px solid #e8eef8" },
-  roughDisclaimer: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 9, padding: "10px 14px", fontSize: "0.8rem", color: "#92400e", lineHeight: 1.5 },
-  roughHeader: { display: "none" }, // hidden — replaced by card layout
-  roughRow: { display: "flex", gap: 8, alignItems: "center" }, // kept for compat
-  roughTypeTag: { padding: "8px 10px", background: "#f0f5fc", border: "1.5px solid #d4e1f5", borderRadius: 9, fontSize: "0.82rem", fontWeight: 600, color: "#0d1f3c", whiteSpace: "nowrap" },
+  roughFieldLabel: { fontSize: "0.68rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "#9CA3AF", marginBottom: 4 },
+  roughCardTotal: { fontSize: "0.85rem", color: "#6B7280", paddingTop: 6, borderTop: "1px solid #E5E9F2" },
+  roughDisclaimer: { background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 9, padding: "10px 14px", fontSize: "0.78rem", color: "#92400E", lineHeight: 1.5 },
+  roughHeader: { display: "none" },
+  roughRow: { display: "flex", gap: 8, alignItems: "center" },
+  roughTypeTag: { padding: "8px 10px", background: "#F3F4F6", border: "1px solid #E5E9F2", borderRadius: 9, fontSize: "0.8rem", fontWeight: 600, color: "#374151", whiteSpace: "nowrap" },
 
   // ── Fixture rows
   fixtureRow: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" },
-  fixtureLineTotal: { minWidth: 72, padding: "10px 0", fontWeight: 600, color: "#2e7dd1", fontSize: "0.9rem", textAlign: "right" },
+  fixtureLineTotal: { minWidth: 72, padding: "10px 0", fontWeight: 600, color: "#2563EB", fontSize: "0.9rem", textAlign: "right" },
 
-  // ── Buttons — all 44px+ touch targets
-  removeBtn: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, color: "#dc2626", cursor: "pointer", padding: "8px 10px", fontSize: "0.82rem", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" },
-  addBtn: { background: "#f0f5fc", border: "1.5px dashed #d4e1f5", borderRadius: 10, color: "#2e7dd1", cursor: "pointer", padding: "12px 16px", fontSize: "0.9rem", fontWeight: 600, fontFamily: "'DM Sans', sans-serif", alignSelf: "flex-start", minHeight: 44 },
-  subtotalRow: { display: "flex", justifyContent: "space-between", padding: "12px 14px", background: "#f0f5fc", borderRadius: 10, fontSize: "0.9rem", color: "#637592", marginTop: 4 },
-  subtotalVal: { fontWeight: 700, color: "#0d1f3c" },
+  // ── Buttons
+  removeBtn: { background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, color: "#DC2626", cursor: "pointer", padding: "8px 10px", fontSize: "0.82rem", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center" },
+  addBtn: { background: "#F3F4F6", border: "1.5px dashed #D1D5DB", borderRadius: 10, color: "#2563EB", cursor: "pointer", padding: "11px 16px", fontSize: "0.88rem", fontWeight: 600, fontFamily: "'Inter', sans-serif", alignSelf: "flex-start", minHeight: 44 },
+  subtotalRow: { display: "flex", justifyContent: "space-between", padding: "11px 14px", background: "#F3F4F6", borderRadius: 10, fontSize: "0.88rem", color: "#6B7280", marginTop: 4 },
+  subtotalVal: { fontWeight: 700, color: "#111827" },
 
   // ── Summary card
-  summaryCard: { background: "#ffffff", border: "1px solid #d4e1f5", borderRadius: 16, padding: "20px 18px", boxShadow: "0 2px 12px rgba(13,31,60,0.04)" },
-  summaryTitle: { fontFamily: "'DM Serif Display', serif", fontSize: "1.3rem", color: "#0d1f3c", marginBottom: 16 },
-  summaryLine: { display: "flex", justifyContent: "space-between", fontSize: "0.95rem", color: "#637592", padding: "9px 0", borderBottom: "1px solid #d4e1f5" },
+  summaryCard: { background: "#ffffff", border: "1px solid #E5E9F2", borderRadius: 14, padding: "18px", overflow: "hidden" },
+  summaryTitle: { fontFamily: "'Sora', sans-serif", fontSize: "1.1rem", fontWeight: 700, color: "#111827", marginBottom: 14 },
+  summaryLine: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.9rem", color: "#6B7280", padding: "9px 0", borderBottom: "1px solid #F3F4F6" },
   summaryDivider: { margin: "6px 0" },
-  summaryTotal: { display: "flex", justifyContent: "space-between", fontFamily: "'DM Serif Display', serif", fontSize: "1.5rem", color: "#0d1f3c", padding: "10px 0 16px" },
-  pdfBtnFull: { display: "block", flex: 1, background: "#f5a623", color: "#0d1f3c", border: "none", borderRadius: 12, padding: "16px", fontSize: "1rem", fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 16px rgba(245,166,35,0.35)", fontFamily: "'DM Sans', sans-serif", textAlign: "center", minHeight: 52 },
+  summaryTotal: { display: "flex", justifyContent: "space-between", alignItems: "center", fontFamily: "'Sora', sans-serif", fontSize: "1.4rem", fontWeight: 700, color: "#111827", padding: "12px 0 14px" },
+  pdfBtnFull: { display: "block", flex: 1, background: "#F59E0B", color: "#111827", border: "none", borderRadius: 12, padding: "15px", fontSize: "0.95rem", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif", textAlign: "center", minHeight: 50 },
 
   // ── Page layout
   pageHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 },
-  pageTitle: { fontFamily: "'DM Serif Display', serif", fontSize: "1.5rem", color: "#0d1f3c" },
+  pageTitle: { fontFamily: "'Sora', sans-serif", fontSize: "1.4rem", fontWeight: 700, color: "#111827", letterSpacing: "-0.2px" },
 
-  // ── Buttons
-  primaryBtn: { background: "#0d1f3c", color: "#ffffff", border: "none", borderRadius: 10, padding: "12px 18px", fontSize: "0.9rem", fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap", minHeight: 44 },
-  secondaryBtn: { background: "#f0f5fc", color: "#0d1f3c", border: "1px solid #d4e1f5", borderRadius: 10, padding: "12px 16px", fontSize: "0.9rem", fontWeight: 500, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap", minHeight: 44 },
-  dangerBtn: { background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", borderRadius: 10, padding: "12px 16px", fontSize: "0.9rem", fontWeight: 500, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap", minHeight: 44 },
-  filterBtn: { background: "#f0f5fc", color: "#637592", border: "1px solid #d4e1f5", borderRadius: 20, padding: "8px 14px", fontSize: "0.82rem", fontWeight: 500, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", minHeight: 36 },
-  filterBtnActive: { background: "#0d1f3c", color: "#ffffff", border: "1px solid #0d1f3c" },
+  // ── Action buttons
+  primaryBtn: { background: "#0B1628", color: "#ffffff", border: "none", borderRadius: 10, padding: "11px 18px", fontSize: "0.88rem", fontWeight: 600, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap", minHeight: 44 },
+  secondaryBtn: { background: "#F3F4F6", color: "#374151", border: "1px solid #E5E9F2", borderRadius: 10, padding: "11px 16px", fontSize: "0.88rem", fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap", minHeight: 44 },
+  dangerBtn: { background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA", borderRadius: 10, padding: "11px 16px", fontSize: "0.88rem", fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif", whiteSpace: "nowrap", minHeight: 44 },
+  filterBtn: { background: "#F3F4F6", color: "#6B7280", border: "1px solid #E5E9F2", borderRadius: 20, padding: "7px 14px", fontSize: "0.8rem", fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif", minHeight: 36 },
+  filterBtnActive: { background: "#0B1628", color: "#ffffff", border: "1px solid #0B1628" },
 
   // ── List rows
-  listRow: { display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 12, border: "1px solid #d4e1f5", background: "#ffffff", marginBottom: 4, flexWrap: "wrap" },
-  listRowTitle: { fontWeight: 600, color: "#0d1f3c", fontSize: "0.95rem" },
-  listRowMeta: { fontSize: "0.78rem", color: "#637592", marginTop: 2 },
-  statusBadge: { padding: "4px 10px", borderRadius: 20, fontSize: "0.74rem", fontWeight: 600, whiteSpace: "nowrap" },
+  listRow: { display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderRadius: 12, border: "1px solid #E5E9F2", background: "#ffffff", marginBottom: 4, flexWrap: "wrap" },
+  listRowTitle: { fontWeight: 600, color: "#111827", fontSize: "0.92rem" },
+  listRowMeta: { fontSize: "0.76rem", color: "#9CA3AF", marginTop: 2 },
+  statusBadge: { padding: "3px 10px", borderRadius: 20, fontSize: "0.72rem", fontWeight: 600, whiteSpace: "nowrap" },
 
   // ── Stat cards
-  statCard: { background: "#ffffff", border: "1px solid #d4e1f5", borderRadius: 14, padding: "16px 16px", boxShadow: "0 2px 8px rgba(13,31,60,0.04)" },
+  statCard: { background: "#ffffff", border: "1px solid #E5E9F2", borderRadius: 13, padding: "14px 16px" },
 
   // ── Customer detail
-  detailLine: { display: "flex", gap: 10, fontSize: "0.9rem", alignItems: "flex-start" },
-  detailKey: { minWidth: 65, fontWeight: 600, color: "#637592", fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.04em", paddingTop: 2, flexShrink: 0 },
+  detailLine: { display: "flex", gap: 10, fontSize: "0.88rem", alignItems: "flex-start" },
+  detailKey: { minWidth: 65, fontWeight: 600, color: "#9CA3AF", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.04em", paddingTop: 2, flexShrink: 0 },
 };
