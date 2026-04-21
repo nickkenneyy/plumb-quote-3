@@ -790,7 +790,7 @@ function DashboardView({ quotes, invoices, customers, onOpenQuote, onNewQuote })
       {/* NEW — overdue alert banner */}
       {overdueInvoices.length > 0 && (
         <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 12, padding: "14px 20px", display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: "1.2rem" }}/span>
+
           <div>
             <div style={{ fontWeight: 700, color: "#c2410c", fontSize: "0.9rem" }}>
               {overdueInvoices.length} overdue invoice{overdueInvoices.length > 1 ? "s" : ""}
